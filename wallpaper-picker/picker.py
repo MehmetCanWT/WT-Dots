@@ -21,14 +21,20 @@ DIR = Path.home() / "Resimler/Wallpapers"
 EXT = {".png", ".jpg", ".jpeg", ".webp"} | theme.VIDEO
 
 
+_bar_restored = False
+
+
 def restore_bar():
-    res = subprocess.run(["pgrep", "-x", "mangobar"], capture_output=True)
-    if res.returncode != 0:
-        subprocess.Popen([
-            "mangobar",
-            "-c", str(Path.home() / ".config/mangobar/config.jsonc"),
-            "-s", str(Path.home() / ".config/mangobar/style.css")
-        ], start_new_session=True)
+    global _bar_restored
+    if _bar_restored:
+        return
+    _bar_restored = True
+    subprocess.run(["pkill", "-x", "mangobar"], check=False)
+    subprocess.Popen([
+        "mangobar",
+        "-c", str(Path.home() / ".config/mangobar/config.jsonc"),
+        "-s", str(Path.home() / ".config/mangobar/style.css")
+    ], start_new_session=True)
 
 
 atexit.register(restore_bar)
@@ -87,7 +93,7 @@ class Bridge(QObject):
     @Slot(int)
     def commit(self, i):
         self.timer.stop()
-        theme.apply(theme.palette(self.files[i]))
+        theme.apply(theme.palette(self.files[i]), restart_bar=False)
         theme.wallpaper(self.files[i])
         restore_bar()
         QGuiApplication.quit()

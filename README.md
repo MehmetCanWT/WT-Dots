@@ -63,7 +63,8 @@ WT-Dots/
 │   ├── keybinds.conf     # Hotkeys and mouse bindings
 │   ├── gamemode.toml     # Gaming submap (preserves Alt+Tab)
 │   └── scripts/
-│       └── keybinds_cheatsheet.sh  # Interactive cheatsheet
+│       ├── keybinds_cheatsheet.sh  # Interactive cheatsheet
+│       └── toggle_desktop.py       # Desktop minimize/restore toggle
 ├── mangobar/
 │   ├── config.jsonc      # Status bar modules (3-island floating setup)
 │   └── style.css         # Solid dark theme CSS
@@ -71,10 +72,16 @@ WT-Dots/
 │   └── fuzzel.ini        # Application launcher configuration
 ├── mako/
 │   └── config            # Notification daemon style
-└── wallpaper-picker/
-    ├── picker.py         # PySide6 wallpaper carousel application (Singleton)
-    ├── picker.qml        # QML 3D coverflow UI
-    └── theme.py          # Dynamic palette & theme generator
+├── wallpaper-picker/
+│   ├── picker.py         # PySide6 wallpaper carousel application (Singleton)
+│   ├── picker.qml        # QML 3D coverflow UI
+│   └── theme.py          # Dynamic palette & theme generator
+├── environment.d/
+│   └── 10-theme.conf     # System-wide dark mode environment variables
+├── gtk-3.0/
+│   └── settings.ini      # GTK 3 Breeze-Dark theme settings
+└── gtk-4.0/
+    └── settings.ini      # GTK 4 Breeze-Dark theme settings
 ```
 
 ---

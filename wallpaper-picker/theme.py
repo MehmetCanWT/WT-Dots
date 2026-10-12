@@ -192,7 +192,7 @@ def argb(c):
     return "0x" + c[1:] + "ff"
 
 
-def apply(p):
+def apply(p, restart_bar=True):
     # mangobar: 3-island floating setup with solid dark color
     write("~/.config/mangobar/style.css", f"""* {{
     font-family: "0xProto Nerd Font";
@@ -258,7 +258,8 @@ def apply(p):
     border-radius: 8px;
 }}
 """)
-    sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
+    if restart_bar:
+        sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
 
     # mango renkleri
     tc = Path("~/.config/mango/theme.conf").expanduser()
