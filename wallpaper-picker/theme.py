@@ -214,6 +214,13 @@ def apply(p, restart_bar=True):
     background: none;
 }}
 
+#custom-power {{
+    padding: 0px 8px;
+    margin: 3px 1px;
+    background-color: {p['bg']};
+    color: {p['urgent']};
+}}
+
 #tags {{
     padding: 0px 8px;
     margin: 3px 1px;

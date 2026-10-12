@@ -3,6 +3,7 @@
     "height": 30,
     "buffer-scale": 1,
     "modules-left": [
+        "custom/power",
         "workspaces"
     ],
     "modules-center": [
@@ -14,6 +15,10 @@
         "pulseaudio",
         "battery"
     ],
+    "custom/power": {
+        "format": "",
+        "on-click": "bash ~/.config/mango/scripts/powermenu.sh"
+    },
     "workspaces": {
         "hide-empty": true,
         "overview-label": "OVERVIEW",

@@ -11,7 +11,11 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
   - `theme.conf` - Colors, borders, curves, gaps, and window animations.
   - `keybinds.conf` - Shortcuts, media controls, and mouse bindings.
   - `gamemode.toml` - Inhibit desktop keybindings while playing games (with `Alt+Tab` preserved).
-- **Native Floating 3-Island Status Bar (`mangobar`)**: Custom-built solid minimalist status bar directly connected to MangoWM via native IPC (left workspaces, center clock, right tray, network, audio, and battery).
+- **Native Floating 3-Island Status Bar (`mangobar`)**: Custom-built solid minimalist status bar directly connected to MangoWM via native IPC:
+  - **Left**: Power menu trigger button (``) and active workspace tags.
+  - **Center**: Clean time clock.
+  - **Right**: System tray, network, audio volume, and battery status.
+- **Power Menu (``)**: Quick action launcher via `fuzzel --dmenu` with options to Shutdown, Reboot, Suspend, and Logout.
 - **Cinematic Wallpaper Picker (`Super+W`)**:
   - Fullscreen fluid 3D-feel cover-flow carousel built with PySide6 & QML.
   - **Singleton protection**: prevents opening multiple instances concurrently.
@@ -64,6 +68,7 @@ WT-Dots/
 │   ├── gamemode.toml     # Gaming submap (preserves Alt+Tab)
 │   └── scripts/
 │       ├── keybinds_cheatsheet.sh  # Interactive cheatsheet
+│       ├── powermenu.sh            # Minimal fuzzel-powered power menu
 │       └── toggle_desktop.py       # Desktop minimize/restore toggle
 ├── mangobar/
 │   ├── config.jsonc      # Status bar modules (3-island floating setup)
