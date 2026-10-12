@@ -25,7 +25,7 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
 - **Application Launcher (`fuzzel`)**: Dark themed, curved borders, with full desktop filtering (`XDG_CURRENT_DESKTOP`) to keep foreign desktop environment entries hidden.
 - **Keybindings Cheatsheet (`Super+K`)**: Instant searchable popup cheatsheet listing all active keybindings.
 - **Show / Hide Desktop (`Super+D`)**: Toggle all active windows to view wallpaper cleanly.
-- **Game Mode (`Super+F12`)**: Toggles a dedicated keymode submap that disables compositor shortcuts for pure gaming inputs, while keeping `Alt+Tab` enabled.
+- **Game Mode (`Super+L`)**: Toggles a dedicated keymode submap that disables compositor shortcuts for pure gaming inputs, while keeping `Alt+Tab` enabled.
 - **Dolphin Dark Theme**: Dark mode support via `~/.config/kdeglobals` and BreezeDark.
 
 ---
@@ -41,7 +41,7 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
 | `Super + K` | Keybindings Cheatsheet Popup |
 | `Super + D` | Show / Hide Desktop (Toggle all windows) |
 | `Alt + Tab` | Switch Window / Jump (Works in Game Mode) |
-| `Super + F12` | Toggle Game Mode (inhibit / restore shortcuts) |
+| `Super + L` | Toggle Game Mode (inhibit / restore shortcuts) |
 | `Alt + Middle Click` | Toggle Fullscreen |
 | `Super + R` | Reload MangoWM Configuration |
 | `Super + M` | Exit MangoWM Session |

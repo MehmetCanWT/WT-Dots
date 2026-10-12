@@ -2,8 +2,8 @@
     font-family: "0xProto Nerd Font";
     font-size: 13px;
     font-weight: normal;
-    color: #e2dcd4;
-    background-color: #141216;
+    color: #96b2ca;
+    background-color: #101419;
     padding: 0px 8px;
     margin: 3px 1px;
     border-radius: 8px;
@@ -20,42 +20,44 @@
 
 #tags {
     padding: 0px 8px;
-    margin: 0px 1px;
-    background-color: #141216;
+    margin: 3px 1px;
+    background-color: #101419;
 }
 
 #tags.active {
-    color: #141216;
-    background-color: #c9b890;
+    color: #101419;
+    background-color: #8f7a79;
     border-radius: 6px;
-    margin: 3px 2px;
+    margin: 3px 1px;
 }
 
 #tags.occupied {
-    color: #e2dcd4;
-    background-color: #141216;
+    color: #96b2ca;
+    background-color: #101419;
 }
 
 #tags.empty {
-    color: #5a544d;
-    background-color: #141216;
+    color: #3a5973;
+    background-color: #101419;
 }
 
 #tags.urgent {
-    color: #ad401f;
-    background-color: #141216;
+    color: #e05f52;
+    background-color: #101419;
 }
 
 #clock {
-    background-color: #141216;
-    color: #e2dcd4;
+    background-color: #101419;
+    color: #96b2ca;
     padding: 0px 12px;
+    margin: 3px 1px;
     border-radius: 8px;
 }
 
 #tray, #network, #volume, #battery {
-    background-color: #141216;
-    color: #e2dcd4;
+    background-color: #101419;
+    color: #96b2ca;
     padding: 0px 8px;
+    margin: 3px 1px;
     border-radius: 8px;
 }

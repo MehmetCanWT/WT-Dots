@@ -216,7 +216,7 @@ def apply(p):
 
 #tags {{
     padding: 0px 8px;
-    margin: 0px 1px;
+    margin: 3px 1px;
     background-color: {p['bg']};
 }}
 
@@ -224,7 +224,7 @@ def apply(p):
     color: {p['bg']};
     background-color: {p['accent']};
     border-radius: 6px;
-    margin: 3px 2px;
+    margin: 3px 1px;
 }}
 
 #tags.occupied {{
@@ -246,6 +246,7 @@ def apply(p):
     background-color: {p['bg']};
     color: {p['fg']};
     padding: 0px 12px;
+    margin: 3px 1px;
     border-radius: 8px;
 }}
 
@@ -253,6 +254,7 @@ def apply(p):
     background-color: {p['bg']};
     color: {p['fg']};
     padding: 0px 8px;
+    margin: 3px 1px;
     border-radius: 8px;
 }}
 """)
@@ -275,6 +277,10 @@ font=0xProto Nerd Font:size=13
 terminal=kitty
 width=40
 lines=12
+horizontal-pad=20
+vertical-pad=14
+inner-pad=8
+line-height=24
 
 [colors]
 background={p['bg'][1:]}ee

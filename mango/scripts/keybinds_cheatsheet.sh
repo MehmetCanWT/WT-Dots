@@ -7,7 +7,7 @@ Alt + Return           ❯ Open Terminal (kitty)
 Alt + Space            ❯ Application Launcher (fuzzel)
 Super + W              ❯ Wallpaper Picker & Theme Selector
 Super + K              ❯ Keybindings Cheatsheet
-Super + F12            ❯ Toggle Game Mode (Disables compositor keys)
+Super + L              ❯ Toggle Game Mode (Disables compositor keys)
 Super + M              ❯ Exit MangoWM
 Super + R              ❯ Reload MangoWM Config
 

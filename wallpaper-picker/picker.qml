@@ -10,18 +10,18 @@ Window {
     visibility: Window.FullScreen
     title: "wallpaper-picker"
 
-    property var pal: bridge.pal
+    property var pal: (typeof bridge !== "undefined" && bridge) ? bridge.pal : null
     property color accent: (pal && pal.accent) ? pal.accent : "#7798d9"
     property color bg: (pal && pal.bg) ? pal.bg : "#0a0c10"
     Behavior on accent { ColorAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
-    property int cur: bridge.initialIndex
+    property int cur: (typeof bridge !== "undefined" && bridge) ? bridge.initialIndex : 0
     property bool bgToggle: false
-    property string srcA: (bridge.items.length > 0 && bridge.initialIndex < bridge.items.length) ? bridge.items[bridge.initialIndex].path : ""
+    property string srcA: (typeof bridge !== "undefined" && bridge && bridge.items && bridge.items.length > 0 && cur < bridge.items.length) ? bridge.items[cur].path : ""
     property string srcB: srcA
 
     function updateBg(idx) {
-        if (bridge.items.length === 0 || idx < 0 || idx >= bridge.items.length) return;
+        if (typeof bridge === "undefined" || !bridge || !bridge.items || bridge.items.length === 0 || idx < 0 || idx >= bridge.items.length) return;
         var p = bridge.items[idx].path;
         if (!bgToggle) {
             srcB = p;
@@ -95,11 +95,23 @@ Window {
         border.width: 1
         z: 200
 
-        Text {
+        Canvas {
             anchors.centerIn: parent
-            text: "✕"
-            color: "white"
-            font.pixelSize: 16
+            width: 38
+            height: 38
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2.0;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.moveTo(13, 13);
+                ctx.lineTo(25, 25);
+                ctx.moveTo(25, 13);
+                ctx.lineTo(13, 25);
+                ctx.stroke();
+            }
         }
 
         MouseArea {
@@ -120,7 +132,7 @@ Window {
         focus: true
         interactive: false
 
-        model: bridge.items
+        model: (typeof bridge !== "undefined" && bridge && bridge.items) ? bridge.items : []
         pathItemCount: 13
         preferredHighlightBegin: 0.5
         preferredHighlightEnd: 0.5
@@ -128,7 +140,7 @@ Window {
         highlightMoveDuration: 280
         snapMode: PathView.SnapToItem
 
-        currentIndex: bridge.initialIndex
+        currentIndex: (typeof bridge !== "undefined" && bridge) ? bridge.initialIndex : 0
 
         onCurrentIndexChanged: {
             updateBg(currentIndex);
@@ -208,11 +220,21 @@ Window {
                     border.color: win.accent
                     border.width: 1
 
-                    Text {
+                    Canvas {
                         anchors.centerIn: parent
-                        text: "▶"
-                        color: "white"
-                        font.pixelSize: 12
+                        width: 28
+                        height: 28
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.reset();
+                            ctx.fillStyle = "white";
+                            ctx.beginPath();
+                            ctx.moveTo(11, 8.5);
+                            ctx.lineTo(19.5, 14);
+                            ctx.lineTo(11, 19.5);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
                     }
                 }
             }
@@ -267,12 +289,14 @@ Window {
         z: 150
 
         Repeater {
-            model: Math.min(6, bridge.items.length)
+            model: (typeof bridge !== "undefined" && bridge && bridge.items) ? Math.min(6, bridge.items.length) : 0
             Rectangle {
-                property int activeDot: bridge.items.length > 0 ? (pv.currentIndex % Math.min(6, bridge.items.length)) : 0
+                property int count: (typeof bridge !== "undefined" && bridge && bridge.items) ? Math.min(6, bridge.items.length) : 1
+                property int activeDot: count > 0 ? (pv.currentIndex % count) : 0
                 width: index === activeDot ? 18 : 6
                 height: 6
                 radius: 3
+                anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                 color: index === activeDot ? win.accent : Qt.rgba(1, 1, 1, 0.35)
                 Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 Behavior on color { ColorAnimation { duration: 200 } }
@@ -291,15 +315,27 @@ Window {
         height: 48
         radius: 24
         color: leftMa.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
-        border.color: Qt.rgba(1, 1, 1, 0.20)
+        border.color: leftMa.containsMouse ? win.accent : Qt.rgba(1, 1, 1, 0.20)
         border.width: 1
         z: 200
 
-        Text {
+        Canvas {
             anchors.centerIn: parent
-            text: "‹"
-            font.pixelSize: 32
-            color: "white"
+            width: 48
+            height: 48
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.beginPath();
+                ctx.moveTo(27, 16);
+                ctx.lineTo(19, 24);
+                ctx.lineTo(27, 32);
+                ctx.stroke();
+            }
         }
 
         MouseArea {
@@ -319,15 +355,27 @@ Window {
         height: 48
         radius: 24
         color: rightMa.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
-        border.color: Qt.rgba(1, 1, 1, 0.20)
+        border.color: rightMa.containsMouse ? win.accent : Qt.rgba(1, 1, 1, 0.20)
         border.width: 1
         z: 200
 
-        Text {
+        Canvas {
             anchors.centerIn: parent
-            text: "›"
-            font.pixelSize: 32
-            color: "white"
+            width: 48
+            height: 48
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.beginPath();
+                ctx.moveTo(21, 16);
+                ctx.lineTo(29, 24);
+                ctx.lineTo(21, 32);
+                ctx.stroke();
+            }
         }
 
         MouseArea {
