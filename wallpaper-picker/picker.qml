@@ -71,20 +71,6 @@ Window {
         }
     }
 
-    // Top Category Header
-    Row {
-        anchors.top: parent.top
-        anchors.topMargin: 40
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 12
-        Text {
-            text: "WALLPAPER PICKER"
-            font.pixelSize: 16
-            font.bold: true
-            font.letterSpacing: 4
-            color: win.accent
-        }
-    }
 
     // Main 3D-feel Center Carousel PathView
     PathView {
@@ -267,44 +253,22 @@ Window {
         onWheel: (e) => (e.angleDelta.y + e.angleDelta.x) < 0 ? pv.incrementCurrentIndex() : pv.decrementCurrentIndex()
     }
 
-    // Bottom Details and Palette Preview
-    Column {
+    // Color palette preview capsules
+    Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 40
-        spacing: 12
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: "white"
-            font.pixelSize: 22
-            font.bold: true
-            text: bridge.items.length > 0 ? bridge.items[pv.currentIndex].name : ""
-        }
-
-        // Color palette preview capsules
-        Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 8
-            Repeater {
-                model: pal ? [pal.bg, pal.bg2, pal.muted, pal.fg, pal.accent, pal.accent2] : []
-                Rectangle {
-                    width: 28
-                    height: 28
-                    radius: 14
-                    color: modelData
-                    border.color: Qt.rgba(1, 1, 1, 0.35)
-                    border.width: 1
-                }
+        spacing: 8
+        Repeater {
+            model: pal ? [pal.bg, pal.bg2, pal.muted, pal.fg, pal.accent, pal.accent2] : []
+            Rectangle {
+                width: 28
+                height: 28
+                radius: 14
+                color: modelData
+                border.color: Qt.rgba(1, 1, 1, 0.35)
+                border.width: 1
             }
-        }
-
-        // Instruction info in English
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: Qt.rgba(1, 1, 1, 0.75)
-            font.pixelSize: 13
-            text: (pv.currentIndex + 1) + " of " + bridge.items.length + "   •   A / D or ← / → to navigate   •   Enter to select   •   Esc to cancel"
         }
     }
 }

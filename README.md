@@ -1,6 +1,6 @@
 # WT-Dots 🥭
 
-Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tailored for Linux with Turkish locale directory structures (`~/Resimler`, `~/İndirilenler`).
+Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tailored for Linux with Turkish locale directory structures (`~/Resimler/Wallpapers`, `~/Resimler/Screenshots`, `~/İndirilenler`).
 
 ---
 
@@ -10,16 +10,23 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
   - `system.conf` - Input hardware, mouse acceleration profile (flat 1:1), 144Hz monitor settings, layouts, and autostart.
   - `theme.conf` - Colors, borders, curves, gaps, and window animations.
   - `keybinds.conf` - Shortcuts, media controls, and mouse bindings.
-  - `gamemode.toml` - Inhibit desktop keybindings while playing games.
-- **Native Status Bar (`mangobar`)**: Custom-built solid minimalist status bar directly connected to MangoWM via native IPC (workspaces, tray, network, audio, battery, clock).
+  - `gamemode.toml` - Inhibit desktop keybindings while playing games (with `Alt+Tab` preserved).
+- **Native Floating 3-Island Status Bar (`mangobar`)**: Custom-built solid minimalist status bar directly connected to MangoWM via native IPC (left workspaces, center clock, right tray, network, audio, and battery).
 - **Cinematic Wallpaper Picker (`Super+W`)**:
   - Fullscreen fluid 3D-feel cover-flow carousel built with PySide6 & QML.
+  - **Singleton protection**: prevents opening multiple instances concurrently.
+  - **Auto-hides `mangobar`** during wallpaper selection for an immersive view.
+  - Minimalist aesthetic: purely focused on visual cards, navigation arrows, and dynamic color capsules.
+  - **On-demand theming**: smoothly applies new palettes and wallpapers upon selection commit (`Enter`), leaving browsing fast and lightweight.
   - Real-time dominant color palette extraction (k-means quantization with PIL).
   - Instantly syncs colors across MangoWM borders, `mangobar`, `fuzzel`, `mako`, and `kitty`.
   - Supports image and video wallpapers.
   - Interactive controls via **A / D**, **← / →**, mouse scroll, or on-screen arrows.
 - **Application Launcher (`fuzzel`)**: Dark themed, curved borders, with full desktop filtering (`XDG_CURRENT_DESKTOP`) to keep foreign desktop environment entries hidden.
-- **Game Mode (`Super+F12`)**: Toggles a dedicated keymode submap that disables compositor shortcuts so games receive pure keyboard inputs (including Alt).
+- **Keybindings Cheatsheet (`Super+K`)**: Instant searchable popup cheatsheet listing all active keybindings.
+- **Show / Hide Desktop (`Super+D`)**: Toggle all active windows to view wallpaper cleanly.
+- **Game Mode (`Super+F12`)**: Toggles a dedicated keymode submap that disables compositor shortcuts for pure gaming inputs, while keeping `Alt+Tab` enabled.
+- **Dolphin Dark Theme**: Dark mode support via `~/.config/kdeglobals` and BreezeDark.
 
 ---
 
@@ -30,16 +37,18 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
 | `Alt + Space` | Open Application Launcher (`fuzzel`) |
 | `Alt + Return` | Open Terminal (`kitty`) |
 | `Alt + Q` | Close Active Window |
-| `Super + W` | Open Wallpaper Carousel Picker |
+| `Super + W` | Open Wallpaper Carousel Picker (Singleton, hides bar) |
+| `Super + K` | Keybindings Cheatsheet Popup |
+| `Super + D` | Show / Hide Desktop (Toggle all windows) |
+| `Alt + Tab` | Switch Window / Jump (Works in Game Mode) |
 | `Super + F12` | Toggle Game Mode (inhibit / restore shortcuts) |
 | `Alt + Middle Click` | Toggle Fullscreen |
 | `Super + R` | Reload MangoWM Configuration |
 | `Super + M` | Exit MangoWM Session |
 | `Ctrl + [1-9]` | Switch to Tag 1-9 |
 | `Alt + [1-9]` | Move Window to Tag 1-9 |
-| `Print` | Copy Fullscreen to Clipboard |
-| `Shift + Print` | Copy Selected Region to Clipboard |
-| `Ctrl + Print` | Save Region to `~/Resimler/Ekran Görüntüleri/` |
+| `Print` | Fullscreen Screenshot ➔ `~/Resimler/Screenshots/` & Clipboard |
+| `Shift + Print` | Selected Region Screenshot ➔ `~/Resimler/Screenshots/` & Clipboard |
 
 ---
 
@@ -52,16 +61,18 @@ WT-Dots/
 │   ├── system.conf       # Hardware, displays, rules & autostart
 │   ├── theme.conf        # Borders, animations & theme colors
 │   ├── keybinds.conf     # Hotkeys and mouse bindings
-│   └── gamemode.toml     # Gaming submap
+│   ├── gamemode.toml     # Gaming submap (preserves Alt+Tab)
+│   └── scripts/
+│       └── keybinds_cheatsheet.sh  # Interactive cheatsheet
 ├── mangobar/
-│   ├── config.jsonc      # Status bar modules
-│   └── style.css         # Solid CSS theme
+│   ├── config.jsonc      # Status bar modules (3-island floating setup)
+│   └── style.css         # Solid dark theme CSS
 ├── fuzzel/
 │   └── fuzzel.ini        # Application launcher configuration
 ├── mako/
 │   └── config            # Notification daemon style
 └── wallpaper-picker/
-    ├── picker.py         # PySide6 wallpaper carousel application
+    ├── picker.py         # PySide6 wallpaper carousel application (Singleton)
     ├── picker.qml        # QML 3D coverflow UI
     └── theme.py          # Dynamic palette & theme generator
 ```
@@ -98,15 +109,11 @@ cp -r ~/Code/WT-Dots/mako ~/.config/
 cp -r ~/Code/WT-Dots/wallpaper-picker ~/.config/
 
 # Place wallpapers into your pictures folder
-mkdir -p ~/Resimler/Wallpapers
-mkdir -p ~/Resimler/'Ekran Görüntüleri'
+mkdir -p ~/Resimler/Wallpapers ~/Resimler/Screenshots
 ```
 
 ---
 
-## 🎨 Wallpaper Directory
-Place all your wallpapers (PNG, JPG, WEBP, or MP4) in:
-```
-~/Resimler/Wallpapers/
-```
-Press `Super + W` to browse, preview dynamic palettes, and hit `Enter` to apply.
+## 📜 License
+
+MIT License. Designed with care for clean, distraction-free Linux desktop workflows.

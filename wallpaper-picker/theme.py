@@ -70,18 +70,70 @@ def argb(c):
 
 
 def apply(p):
-    # mangobar
-    write("~/.config/mangobar/style.css", f"""* {{ font-family: "0xProto Nerd Font"; font-size: 13px; font-weight: normal; color: {p['fg']}; background: none; padding: 0px 8px; margin: 0px; border-radius: 0px; }}
-#bar {{ background-color: {p['bg']}; margin: 0px; }}
-#bar.sel {{ background-color: {p['bg']}; }}
-#tags.active {{ color: {p['bg']}; background-color: {p['accent']}; border-radius: 4px; margin: 3px 1px; }}
-#tags.occupied {{ color: {p['fg']}; }}
-#tags.empty {{ color: {p['muted']}; }}
-#tags.urgent {{ color: {p['urgent']}; }}
-#title {{ color: {p['muted']}; }}
-#keymode {{ color: {p['urgent']}; }}
+    # mangobar: 3-island floating setup with solid dark color
+    write("~/.config/mangobar/style.css", f"""* {{
+    font-family: "0xProto Nerd Font";
+    font-size: 13px;
+    font-weight: normal;
+    color: {p['fg']};
+    background-color: {p['bg']};
+    padding: 0px 8px;
+    margin: 3px 1px;
+    border-radius: 8px;
+}}
+
+#bar {{
+    background: none;
+    margin: 2px 8px;
+}}
+
+#bar.sel {{
+    background: none;
+}}
+
+#tags {{
+    padding: 0px 8px;
+    margin: 0px 1px;
+    background-color: {p['bg']};
+}}
+
+#tags.active {{
+    color: {p['bg']};
+    background-color: {p['accent']};
+    border-radius: 6px;
+    margin: 3px 2px;
+}}
+
+#tags.occupied {{
+    color: {p['fg']};
+    background-color: {p['bg']};
+}}
+
+#tags.empty {{
+    color: {p['muted']};
+    background-color: {p['bg']};
+}}
+
+#tags.urgent {{
+    color: {p['urgent']};
+    background-color: {p['bg']};
+}}
+
+#clock {{
+    background-color: {p['bg']};
+    color: {p['fg']};
+    padding: 0px 12px;
+    border-radius: 8px;
+}}
+
+#tray, #network, #volume, #battery {{
+    background-color: {p['bg']};
+    color: {p['fg']};
+    padding: 0px 8px;
+    border-radius: 8px;
+}}
 """)
-    sh("pkill -x mangobar; sleep 0.05; setsid mangobar")
+    sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
     # mango renkleri
     tc = Path("~/.config/mango/theme.conf").expanduser()
     vals = {"root_color": p["bg"], "border_color": p["bg2"], "focus_color": p["accent"],

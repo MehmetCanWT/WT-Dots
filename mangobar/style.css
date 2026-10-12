@@ -1,9 +1,61 @@
-* { font-family: "0xProto Nerd Font"; font-size: 13px; font-weight: normal; color: #e0c5c7; background: none; padding: 0px 8px; margin: 0px; border-radius: 0px; }
-#bar { background-color: #170f0f; margin: 0px; }
-#bar.sel { background-color: #170f0f; }
-#tags.active { color: #170f0f; background-color: #d94c52; border-radius: 4px; margin: 3px 1px; }
-#tags.occupied { color: #e0c5c7; }
-#tags.empty { color: #80696a; }
-#tags.urgent { color: #e06c5a; }
-#title { color: #80696a; }
-#keymode { color: #e06c5a; }
+* {
+    font-family: "0xProto Nerd Font";
+    font-size: 13px;
+    font-weight: normal;
+    color: #e2dcd4;
+    background-color: #141216;
+    padding: 0px 8px;
+    margin: 3px 1px;
+    border-radius: 8px;
+}
+
+#bar {
+    background: none;
+    margin: 2px 8px;
+}
+
+#bar.sel {
+    background: none;
+}
+
+#tags {
+    padding: 0px 8px;
+    margin: 0px 1px;
+    background-color: #141216;
+}
+
+#tags.active {
+    color: #141216;
+    background-color: #c9b890;
+    border-radius: 6px;
+    margin: 3px 2px;
+}
+
+#tags.occupied {
+    color: #e2dcd4;
+    background-color: #141216;
+}
+
+#tags.empty {
+    color: #5a544d;
+    background-color: #141216;
+}
+
+#tags.urgent {
+    color: #ad401f;
+    background-color: #141216;
+}
+
+#clock {
+    background-color: #141216;
+    color: #e2dcd4;
+    padding: 0px 12px;
+    border-radius: 8px;
+}
+
+#tray, #network, #volume, #battery {
+    background-color: #141216;
+    color: #e2dcd4;
+    padding: 0px 8px;
+    border-radius: 8px;
+}

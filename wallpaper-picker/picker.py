@@ -1,16 +1,37 @@
 #!/usr/bin/env python3
-import hashlib, os, subprocess, sys, threading
+import atexit, fcntl, hashlib, os, subprocess, sys
 from pathlib import Path
 from PIL import Image
 from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QGuiApplication, QSurfaceFormat
 from PySide6.QtQml import QQmlApplicationEngine
 
+# Singleton check: allow only one instance at a time
+LOCK_PATH = "/tmp/wallpaper-picker.lock"
+try:
+    lock_file = open(LOCK_PATH, "w")
+    fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except (BlockingIOError, OSError):
+    sys.exit(0)
+
 sys.path.insert(0, str(Path(__file__).parent))
 import theme
 
 DIR = Path.home() / "Resimler/Wallpapers"
 EXT = {".png", ".jpg", ".jpeg", ".webp"} | theme.VIDEO
+
+
+def restore_bar():
+    res = subprocess.run(["pgrep", "-x", "mangobar"], capture_output=True)
+    if res.returncode != 0:
+        subprocess.Popen([
+            "mangobar",
+            "-c", str(Path.home() / ".config/mangobar/config.jsonc"),
+            "-s", str(Path.home() / ".config/mangobar/style.css")
+        ], start_new_session=True)
+
+
+atexit.register(restore_bar)
 
 
 def thumb(f):
@@ -29,7 +50,6 @@ class Bridge(QObject):
         super().__init__()
         self.files = files
         self._pal = theme.palette(files[0])
-        self.orig = (theme.CACHE / "current").read_text() if (theme.CACHE / "current").exists() else None
         self.pending = None
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
@@ -59,15 +79,20 @@ class Bridge(QObject):
         self.timer.stop()
         theme.apply(theme.palette(self.files[i]))
         theme.wallpaper(self.files[i])
+        restore_bar()
         QGuiApplication.quit()
 
     @Slot()
     def cancel(self):
         self.timer.stop()
+        restore_bar()
         QGuiApplication.quit()
 
 
 def main():
+    # Hide status bar while picker is active
+    subprocess.run(["pkill", "-x", "mangobar"], check=False)
+
     theme.CACHE.mkdir(parents=True, exist_ok=True)
     files = sorted((str(p) for p in DIR.iterdir() if p.suffix.lower() in EXT), key=os.path.getmtime, reverse=True)
     if not files:
@@ -81,7 +106,10 @@ def main():
     eng = QQmlApplicationEngine()
     eng.rootContext().setContextProperty("bridge", b)
     eng.load(QUrl.fromLocalFile(str(Path(__file__).with_name("picker.qml"))))
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    restore_bar()
+    sys.exit(exit_code)
 
 
-main()
+if __name__ == "__main__":
+    main()

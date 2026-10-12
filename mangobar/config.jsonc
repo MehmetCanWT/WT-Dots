@@ -1,17 +1,18 @@
 {
     "layer": "top",
-    "height": 28,
+    "height": 30,
     "buffer-scale": 1,
     "modules-left": [
         "workspaces"
     ],
-    "modules-center": [],
+    "modules-center": [
+        "clock#time"
+    ],
     "modules-right": [
         "tray",
         "network",
         "pulseaudio",
-        "battery",
-        "clock#time"
+        "battery"
     ],
     "workspaces": {
         "hide-empty": true,
@@ -26,8 +27,7 @@
         "icon-wifi": "󰖩",
         "icon-ethernet": "󰈀",
         "icon-disconnected": "󰖪",
-        "signal-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
-        "format-alt": "↓{down} ↑{up}"
+        "signal-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"]
     },
     "pulseaudio": {
         "format": "{icon} {volume}%",
@@ -45,7 +45,7 @@
         "format": " {:L%H:%M}"
     },
     "tray": {
-        "icon-size": 20,
-        "spacing": 8
+        "icon-size": 18,
+        "spacing": 6
     }
 }
