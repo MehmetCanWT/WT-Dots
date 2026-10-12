@@ -1,0 +1,51 @@
+{
+    "layer": "top",
+    "height": 28,
+    "buffer-scale": 1,
+    "modules-left": [
+        "workspaces"
+    ],
+    "modules-center": [],
+    "modules-right": [
+        "tray",
+        "network",
+        "pulseaudio",
+        "battery",
+        "clock#time"
+    ],
+    "workspaces": {
+        "hide-empty": true,
+        "overview-label": "OVERVIEW",
+        "on-click": "activate",
+        "on-click-right": "toggle"
+    },
+    "network": {
+        "format": "{icon} {ifname}",
+        "format-wifi": "{signal} {ssid}",
+        "format-disconnected": "{icon}",
+        "icon-wifi": "󰖩",
+        "icon-ethernet": "󰈀",
+        "icon-disconnected": "󰖪",
+        "signal-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
+        "format-alt": "↓{down} ↑{up}"
+    },
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰝟 {volume}%",
+        "icons": ["󰝟", "󰕿", "󰕾"],
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 2%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"
+    },
+    "battery": {
+        "format": "{icon} {percent}%",
+        "icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    },
+    "clock#time": {
+        "format": " {:L%H:%M}"
+    },
+    "tray": {
+        "icon-size": 20,
+        "spacing": 8
+    }
+}

@@ -1,0 +1,9 @@
+* { font-family: "0xProto Nerd Font"; font-size: 13px; font-weight: normal; color: #e0c5c7; background: none; padding: 0px 8px; margin: 0px; border-radius: 0px; }
+#bar { background-color: #170f0f; margin: 0px; }
+#bar.sel { background-color: #170f0f; }
+#tags.active { color: #170f0f; background-color: #d94c52; border-radius: 4px; margin: 3px 1px; }
+#tags.occupied { color: #e0c5c7; }
+#tags.empty { color: #80696a; }
+#tags.urgent { color: #e06c5a; }
+#title { color: #80696a; }
+#keymode { color: #e06c5a; }

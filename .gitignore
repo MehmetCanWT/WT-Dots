@@ -1,0 +1,22 @@
+# Cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+.cache/
+*.log
+*.tmp
+*.bak*
+
+# OS and Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Build and binary artifacts
+build/
+*.o
+*.so

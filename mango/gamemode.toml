@@ -1,0 +1,3 @@
+# Game mode submap: All shortcuts inhibited except exit hotkey
+[bind.game]
+"SUPER+F12" = "setkeymode,default"
