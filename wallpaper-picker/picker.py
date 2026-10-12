@@ -38,7 +38,7 @@ def thumb(f):
     out = theme.CACHE / (hashlib.sha1(f"{f}{os.path.getmtime(f)}".encode()).hexdigest() + ".thumb2.png")
     if not out.exists():
         im = Image.open(theme.still(f)).convert("RGB")
-        im.thumbnail((1280, 720))
+        im.thumbnail((640, 360))
         im.save(out)
     return out
 
@@ -49,12 +49,18 @@ class Bridge(QObject):
     def __init__(self, files):
         super().__init__()
         self.files = files
-        self._pal = theme.palette(files[0])
+        cur_file = (theme.CACHE / "current").read_text().strip() if (theme.CACHE / "current").exists() else ""
+        self.initial_index = self.files.index(cur_file) if cur_file in self.files else 0
+        self._pal = theme.palette(self.files[self.initial_index])
         self.pending = None
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.setInterval(40)
         self.timer.timeout.connect(self.fire)
+
+    @Property(int, constant=True)
+    def initialIndex(self):
+        return self.initial_index
 
     @Property("QVariantMap", notify=paletteChanged)
     def pal(self):
@@ -62,8 +68,12 @@ class Bridge(QObject):
 
     @Property("QVariantList", constant=True)
     def items(self):
-        return [{"name": Path(f).stem, "thumb": QUrl.fromLocalFile(str(thumb(f))).toString(),
-                 "video": Path(f).suffix.lower() in theme.VIDEO} for f in self.files]
+        return [{
+            "name": Path(f).stem,
+            "path": QUrl.fromLocalFile(str(theme.still(f))).toString(),
+            "thumb": QUrl.fromLocalFile(str(thumb(f))).toString(),
+            "video": Path(f).suffix.lower() in theme.VIDEO
+        } for f in self.files]
 
     @Slot(int)
     def preview(self, i):

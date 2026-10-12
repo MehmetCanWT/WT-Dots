@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""palette cikar + tema uygula. Kullanim: theme.py <dosya> [--wall]"""
+"""ricemood / node-vibrant inspired color extractor & theme applier."""
 import colorsys, hashlib, json, os, subprocess, sys
 from pathlib import Path
 from PIL import Image
@@ -22,34 +22,157 @@ def still(path):
     return out
 
 
-def hexc(h, s, v):
-    r, g, b = colorsys.hsv_to_rgb(h % 1.0, max(0, min(1, s)), max(0, min(1, v)))
+def rgb_to_hsl(r, g, b):
+    mx, mn = max(r, g, b), min(r, g, b)
+    l = (mx + mn) / 2.0
+    if mx == mn:
+        h = s = 0.0
+    else:
+        d = mx - mn
+        s = d / (2.0 - mx - mn) if l > 0.5 else d / (mx + mn)
+        if mx == r:
+            h = (g - b) / d + (6.0 if g < b else 0.0)
+        elif mx == g:
+            h = (b - r) / d + 2.0
+        else:
+            h = (r - g) / d + 4.0
+        h /= 6.0
+    return h, s, l
+
+
+def hsl_to_rgb(h, s, l):
+    if s == 0:
+        return l, l, l
+    def hue2rgb(p, q, t):
+        t = t % 1.0
+        if t < 1/6: return p + (q - p) * 6 * t
+        if t < 1/2: return q
+        if t < 2/3: return p + (q - p) * (2/3 - t) * 6
+        return p
+    q = l * (1 + s) if l < 0.5 else l + s - l * s
+    p = 2 * l - q
+    return hue2rgb(p, q, h + 1/3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1/3)
+
+
+def rgb_to_hex(r, g, b):
     return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+
+
+def hex_to_hsl(hex_str):
+    h = hex_str.lstrip("#")
+    r, g, b = (int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+    return rgb_to_hsl(r, g, b)
+
+
+def hsl_to_hex(h, s, l):
+    r, g, b = hsl_to_rgb(h, max(0.0, min(1.0, s)), max(0.0, min(1.0, l)))
+    return rgb_to_hex(r, g, b)
+
+
+# ricemood color modifier helpers
+def lighten(hex_str, amount):
+    h, s, l = hex_to_hsl(hex_str)
+    return hsl_to_hex(h, s, l + (amount / 100.0))
+
+
+def darken(hex_str, amount):
+    h, s, l = hex_to_hsl(hex_str)
+    return hsl_to_hex(h, s, l - (amount / 100.0))
+
+
+def saturate(hex_str, amount):
+    h, s, l = hex_to_hsl(hex_str)
+    return hsl_to_hex(h, s + (amount / 100.0), l)
+
+
+def desaturate(hex_str, amount):
+    h, s, l = hex_to_hsl(hex_str)
+    return hsl_to_hex(h, s - (amount / 100.0), l)
+
+
+def extract_vibrant_swatches(image_path):
+    """node-vibrant / Android Palette implementation using PIL median-cut quantization."""
+    im = Image.open(still(image_path)).convert("RGB")
+    im.thumbnail((128, 128))
+    q = im.quantize(16, method=Image.Quantize.MEDIANCUT)
+    pal = q.getpalette()
+    colors = q.getcolors()
+
+    swatches = []
+    max_pop = max((cnt for cnt, _ in colors), default=1)
+    for cnt, idx in colors:
+        r, g, b = (pal[idx * 3 + i] / 255.0 for i in range(3))
+        h, s, l = rgb_to_hsl(r, g, b)
+        swatches.append({'r': r, 'g': g, 'b': b, 'h': h, 's': s, 'l': l, 'pop': cnt})
+
+    profiles = {
+        'Vibrant':      {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.50, 'min_l': 0.30, 'max_l': 0.70},
+        'LightVibrant': {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.74, 'min_l': 0.55, 'max_l': 1.00},
+        'DarkVibrant':  {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.26, 'min_l': 0.00, 'max_l': 0.45},
+        'Muted':        {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.50, 'min_l': 0.30, 'max_l': 0.70},
+        'LightMuted':   {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.74, 'min_l': 0.55, 'max_l': 1.00},
+        'DarkMuted':    {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.26, 'min_l': 0.00, 'max_l': 0.45},
+    }
+
+    results = {}
+    for name, prof in profiles.items():
+        best, best_score = None, -1.0
+        for sw in swatches:
+            s, l, pop = sw['s'], sw['l'], sw['pop']
+            if not (prof['min_s'] <= s <= prof['max_s'] and prof['min_l'] <= l <= prof['max_l']):
+                continue
+            score = (1.0 - abs(s - prof['target_s'])) * 0.35 + (1.0 - abs(l - prof['target_l'])) * 0.52 + (pop / max_pop) * 0.13
+            if score > best_score:
+                best_score = score
+                best = sw
+        if best:
+            results[name] = rgb_to_hex(best['r'], best['g'], best['b'])
+
+    # Fallback to dominant colors if any profile is missing
+    fallback = rgb_to_hex(swatches[0]['r'], swatches[0]['g'], swatches[0]['b']) if swatches else "#7798d9"
+    results.setdefault('Vibrant', fallback)
+    results.setdefault('LightVibrant', lighten(results['Vibrant'], 25))
+    results.setdefault('DarkVibrant', darken(results['Vibrant'], 25))
+    results.setdefault('Muted', desaturate(results['Vibrant'], 35))
+    results.setdefault('LightMuted', lighten(results['Muted'], 25))
+    results.setdefault('DarkMuted', darken(results['Muted'], 25))
+    return results
 
 
 def palette(path):
     key = hashlib.sha1(f"{path}{os.path.getmtime(path)}".encode()).hexdigest()
-    cf = CACHE / (key + ".json")
+    cf = CACHE / (key + ".vibrant.json")
     if cf.exists():
-        return json.loads(cf.read_text())
-    im = Image.open(still(path)).convert("RGB")
-    im.thumbnail((96, 96))
-    q = im.quantize(10, method=Image.Quantize.MEDIANCUT)
-    pal = q.getpalette()
-    best, score = (0.6, 0.5, 0.8), -1
-    for n, idx in q.getcolors():
-        r, g, b = (pal[idx * 3 + i] / 255 for i in range(3))
-        h, s, v = colorsys.rgb_to_hsv(r, g, b)
-        sc = (n ** 0.5) * (s + 0.15) * (1 if 0.25 < v < 0.95 else 0.3)
-        if sc > score:
-            best, score = (h, s, v), sc
-    h, s, _ = best
-    s = max(s, 0.35)
+        try:
+            return json.loads(cf.read_text())
+        except Exception:
+            pass
+
+    sw = extract_vibrant_swatches(path)
+
+    # ricemood style color scheme synthesis
+    h, s, _ = hex_to_hsl(sw['DarkVibrant'] if 'DarkVibrant' in sw else sw['Vibrant'])
+    # Deep solid dark theme background subtly tinted by the image
+    bg = hsl_to_hex(h, min(0.30, s * 0.4), 0.08)
+    bg2 = hsl_to_hex(h, min(0.35, s * 0.5), 0.14)
+    fg = lighten(sw.get('LightMuted', sw.get('LightVibrant', "#e0dcd4")), 10)
+    accent = sw['Vibrant']
+    accent2 = sw.get('LightVibrant', lighten(accent, 15))
+    muted = sw.get('Muted', desaturate(accent, 40))
+    urgent = "#e05f52"
+
     p = {
-        "bg": hexc(h, 0.30 * s + 0.1, 0.09), "bg2": hexc(h, 0.30 * s + 0.1, 0.16),
-        "fg": hexc(h, 0.12, 0.88), "muted": hexc(h, 0.18, 0.50),
-        "accent": hexc(h, min(0.65, s + 0.1), 0.85), "accent2": hexc(h + 0.08, 0.5, 0.80),
-        "urgent": "#e06c5a",
+        "bg": bg,
+        "bg2": bg2,
+        "fg": fg,
+        "muted": muted,
+        "accent": accent,
+        "accent2": accent2,
+        "urgent": urgent,
+        "vibrant": sw['Vibrant'],
+        "dark_vibrant": sw.get('DarkVibrant', bg),
+        "light_vibrant": sw.get('LightVibrant', accent2),
+        "dark_muted": sw.get('DarkMuted', bg2),
     }
     cf.write_text(json.dumps(p))
     return p
@@ -134,6 +257,7 @@ def apply(p):
 }}
 """)
     sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
+
     # mango renkleri
     tc = Path("~/.config/mango/theme.conf").expanduser()
     vals = {"root_color": p["bg"], "border_color": p["bg2"], "focus_color": p["accent"],
@@ -144,6 +268,7 @@ def apply(p):
         lines.append(f"{k}={argb(vals[k])}" if k in vals else ln)
     tc.write_text("\n".join(lines) + "\n")
     sh("mmsg dispatch reload_config")
+
     # fuzzel, mako, kitty
     write("~/.config/fuzzel/fuzzel.ini", f"""[main]
 font=0xProto Nerd Font:size=13
@@ -171,6 +296,7 @@ border-radius=8
 default-timeout=5000
 """)
     sh("makoctl reload")
+
     write("~/.config/kitty/current-theme.conf", f"""foreground {p['fg']}
 background {p['bg']}
 cursor {p['accent']}
@@ -199,14 +325,15 @@ def wallpaper(path):
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "--restore":  # acilista son duvar kagidi
+    if len(sys.argv) > 1 and sys.argv[1] == "--restore":
         cur = CACHE / "current"
         if cur.exists() and Path(cur.read_text()).exists():
             sys.argv[1:] = [cur.read_text(), "--wall"]
         else:
             sh("swaybg -c 201b14")
             sys.exit()
-    f = sys.argv[1]
-    apply(palette(f))
-    if "--wall" in sys.argv:
-        wallpaper(f)
+    if len(sys.argv) > 1:
+        f = sys.argv[1]
+        apply(palette(f))
+        if "--wall" in sys.argv:
+            wallpaper(f)

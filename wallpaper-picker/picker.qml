@@ -12,164 +12,219 @@ Window {
 
     property var pal: bridge.pal
     property color accent: (pal && pal.accent) ? pal.accent : "#7798d9"
-    property color bg: (pal && pal.bg) ? pal.bg : "#101216"
-    Behavior on accent { ColorAnimation { duration: 300; easing.type: Easing.OutCubic } }
-    Behavior on bg { ColorAnimation { duration: 300; easing.type: Easing.OutCubic } }
+    property color bg: (pal && pal.bg) ? pal.bg : "#0a0c10"
+    Behavior on accent { ColorAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
-    property int cur: pv.currentIndex
-    property bool flip: false
-    property string srcA: bridge.items.length > 0 ? bridge.items[0].thumb : ""
-    property string srcB: bridge.items.length > 0 ? bridge.items[0].thumb : ""
-    onCurChanged: {
-        if (flip) srcA = bridge.items[cur].thumb;
-        else srcB = bridge.items[cur].thumb;
-        flip = !flip;
+    property int cur: bridge.initialIndex
+    property bool bgToggle: false
+    property string srcA: (bridge.items.length > 0 && bridge.initialIndex < bridge.items.length) ? bridge.items[bridge.initialIndex].path : ""
+    property string srcB: srcA
+
+    function updateBg(idx) {
+        if (bridge.items.length === 0 || idx < 0 || idx >= bridge.items.length) return;
+        var p = bridge.items[idx].path;
+        if (!bgToggle) {
+            srcB = p;
+            bgToggle = true;
+        } else {
+            srcA = p;
+            bgToggle = false;
+        }
     }
 
-    // 100% OPAQUE base: completely hides underlying windows
+    // -----------------------------------------------------
+    // LOSSLESS FULL-SCREEN DYNAMIC BACKGROUND PREVIEW
+    // -----------------------------------------------------
     Rectangle {
         anchors.fill: parent
         color: "#0a0c10"
     }
 
-    // Blurred dynamic backdrop matching selected wallpaper
     Item {
-        id: backdrop
+        id: bgContainer
         anchors.fill: parent
-        opacity: 0.40
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 64
-            saturation: 0.45
-            brightness: -0.05
-        }
+
         Image {
+            id: bgA
             anchors.fill: parent
             source: srcA
             fillMode: Image.PreserveAspectCrop
-            opacity: flip ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
+            asynchronous: true
+            cache: true
+            smooth: true
+            opacity: bgToggle ? 0.0 : 1.0
+            Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.InOutQuad } }
         }
+
         Image {
+            id: bgB
             anchors.fill: parent
             source: srcB
             fillMode: Image.PreserveAspectCrop
-            opacity: flip ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
+            asynchronous: true
+            cache: true
+            smooth: true
+            opacity: bgToggle ? 1.0 : 0.0
+            Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.InOutQuad } }
         }
     }
 
-    // Subtle dark vignette for contrast
+    // Subtle dark gradient along bottom dock to enhance card contrast
     Rectangle {
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 380
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.7) }
-            GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.3) }
-            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.8) }
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.4; color: Qt.rgba(0, 0, 0, 0.40) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.85) }
         }
     }
 
+    // Top Right Close Button (✕)
+    Rectangle {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 28
+        width: 38
+        height: 38
+        radius: 19
+        color: closeMa.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.55)
+        border.color: Qt.rgba(1, 1, 1, 0.25)
+        border.width: 1
+        z: 200
 
-    // Main 3D-feel Center Carousel PathView
+        Text {
+            anchors.centerIn: parent
+            text: "✕"
+            color: "white"
+            font.pixelSize: 16
+        }
+
+        MouseArea {
+            id: closeMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: bridge.cancel()
+        }
+    }
+
+    // -----------------------------------------------------
+    // HYPRQUICKPAPER BOTTOM DOCK CAROUSEL (PATHVIEW)
+    // -----------------------------------------------------
     PathView {
         id: pv
-        anchors.centerIn: parent
-        width: win.width
-        height: 520
+        anchors.fill: parent
+        focus: true
+        interactive: false
+
         model: bridge.items
-        pathItemCount: 5
+        pathItemCount: 13
         preferredHighlightBegin: 0.5
         preferredHighlightEnd: 0.5
         highlightRangeMode: PathView.StrictlyEnforceRange
-        highlightMoveDuration: 300
+        highlightMoveDuration: 280
         snapMode: PathView.SnapToItem
-        focus: true
 
-        onCurrentIndexChanged: bridge.preview(currentIndex)
-        Component.onCompleted: bridge.preview(currentIndex)
+        currentIndex: bridge.initialIndex
+
+        onCurrentIndexChanged: {
+            updateBg(currentIndex);
+            bridge.preview(currentIndex);
+        }
 
         path: Path {
-            startX: -320; startY: 260
-            PathAttribute { name: "z"; value: 0 }
-            PathAttribute { name: "sc"; value: 0.45 }
-            PathAttribute { name: "op"; value: 0.0 }
+            startX: -win.width * 0.12
+            startY: win.height - 150
 
-            PathLine { x: pv.width * 0.18; y: 260 }
-            PathAttribute { name: "z"; value: 3 }
-            PathAttribute { name: "sc"; value: 0.62 }
-            PathAttribute { name: "op"; value: 0.55 }
+            PathAttribute { name: "itemScale"; value: 1.0 }
+            PathAttribute { name: "itemOpacity"; value: 0.92 }
+            PathAttribute { name: "itemZ"; value: 1 }
+            PathPercent { value: 0.0 }
 
-            PathLine { x: pv.width * 0.5; y: 260 }
-            PathAttribute { name: "z"; value: 10 }
-            PathAttribute { name: "sc"; value: 1.0 }
-            PathAttribute { name: "op"; value: 1.0 }
+            PathLine { x: win.width * 0.5; y: win.height - 150 }
+            PathAttribute { name: "itemScale"; value: 1.28 }
+            PathAttribute { name: "itemOpacity"; value: 1.0 }
+            PathAttribute { name: "itemZ"; value: 100 }
+            PathPercent { value: 0.5 }
 
-            PathLine { x: pv.width * 0.82; y: 260 }
-            PathAttribute { name: "z"; value: 3 }
-            PathAttribute { name: "sc"; value: 0.62 }
-            PathAttribute { name: "op"; value: 0.55 }
-
-            PathLine { x: pv.width + 320; y: 260 }
-            PathAttribute { name: "z"; value: 0 }
-            PathAttribute { name: "sc"; value: 0.45 }
-            PathAttribute { name: "op"; value: 0.0 }
+            PathLine { x: win.width * 1.12; y: win.height - 150 }
+            PathAttribute { name: "itemScale"; value: 1.0 }
+            PathAttribute { name: "itemOpacity"; value: 0.92 }
+            PathAttribute { name: "itemZ"; value: 1 }
+            PathPercent { value: 1.0 }
         }
 
         delegate: Item {
             id: card
-            width: 760
-            height: 428
-            z: PathView.z
-            scale: PathView.sc
-            opacity: PathView.op
+            width: 310
+            height: 190
+
+            property bool isCurrent: PathView.isCurrentItem
+
+            scale: PathView.itemScale
+            opacity: PathView.itemOpacity
+            z: isCurrent ? 100 : PathView.itemZ
+
+            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+
+            // Parallelogram shear transformation (HyprQuickPaper style)
+            transform: Matrix4x4 {
+                matrix: Qt.matrix4x4(
+                    1, -0.22, 0, 0.22 * 190 / 2,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                )
+            }
 
             Rectangle {
-                id: frame
+                id: cardFrame
                 anchors.fill: parent
-                radius: 18
-                color: "#161920"
-                border.width: card.PathView.isCurrentItem ? 3 : 1
-                border.color: card.PathView.isCurrentItem ? win.accent : Qt.rgba(1, 1, 1, 0.15)
+                radius: 14
+                color: "#12141a"
                 clip: true
-
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    shadowEnabled: true
-                    shadowBlur: 1.0
-                    shadowOpacity: card.PathView.isCurrentItem ? 0.85 : 0.4
-                    shadowVerticalOffset: 12
-                    shadowColor: card.PathView.isCurrentItem ? Qt.rgba(0, 0, 0, 0.95) : Qt.rgba(0, 0, 0, 0.6)
-                }
 
                 Image {
                     anchors.fill: parent
-                    anchors.margins: frame.border.width
                     source: modelData.thumb
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
+                    cache: true
                 }
 
                 // Video indicator badge
                 Rectangle {
                     visible: modelData.video
-                    anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.margins: 16
-                    width: 44
-                    height: 44
-                    radius: 22
-                    color: Qt.rgba(0, 0, 0, 0.65)
+                    anchors.left: parent.left
+                    anchors.margins: 10
+                    width: 28
+                    height: 28
+                    radius: 14
+                    color: Qt.rgba(0, 0, 0, 0.70)
                     border.color: win.accent
                     border.width: 1
+
                     Text {
                         anchors.centerIn: parent
                         text: "▶"
                         color: "white"
-                        font.pixelSize: 18
+                        font.pixelSize: 12
                     }
                 }
+            }
+
+            // Outline highlight border
+            Rectangle {
+                anchors.fill: parent
+                radius: 14
+                color: "transparent"
+                border.width: card.isCurrent ? 2.5 : 1.0
+                border.color: card.isCurrent ? win.accent : Qt.rgba(1, 1, 1, 0.20)
+                Behavior on border.color { ColorAnimation { duration: 200 } }
             }
 
             MouseArea {
@@ -190,32 +245,65 @@ Window {
                 pv.incrementCurrentIndex();
             else if (e.key === Qt.Key_Left || e.key === Qt.Key_A || e.key === Qt.Key_H)
                 pv.decrementCurrentIndex();
-            else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space)
+            else if (e.key === Qt.Key_Up || e.key === Qt.Key_U) {
+                for (var i = 0; i < 4; i++) pv.incrementCurrentIndex();
+            } else if (e.key === Qt.Key_Down) {
+                for (var j = 0; j < 4; j++) pv.decrementCurrentIndex();
+            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space)
                 bridge.commit(pv.currentIndex);
             else if (e.key === Qt.Key_Escape)
                 bridge.cancel();
         }
     }
 
-    // Left Navigation Arrow Button
+    // -----------------------------------------------------
+    // PAGINATION / POSITION INDICATOR DOTS
+    // -----------------------------------------------------
+    Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 18
+        spacing: 6
+        z: 150
+
+        Repeater {
+            model: Math.min(6, bridge.items.length)
+            Rectangle {
+                property int activeDot: bridge.items.length > 0 ? (pv.currentIndex % Math.min(6, bridge.items.length)) : 0
+                width: index === activeDot ? 18 : 6
+                height: 6
+                radius: 3
+                color: index === activeDot ? win.accent : Qt.rgba(1, 1, 1, 0.35)
+                Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
+        }
+    }
+
+    // -----------------------------------------------------
+    // LEFT & RIGHT NAVIGATION CHEVRON BUTTONS
+    // -----------------------------------------------------
     Rectangle {
         anchors.left: parent.left
-        anchors.leftMargin: 48
+        anchors.leftMargin: 32
         anchors.verticalCenter: parent.verticalCenter
-        width: 52
-        height: 52
-        radius: 26
-        color: lma.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
-        border.color: Qt.rgba(1, 1, 1, 0.2)
+        width: 48
+        height: 48
+        radius: 24
+        color: leftMa.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
+        border.color: Qt.rgba(1, 1, 1, 0.20)
         border.width: 1
+        z: 200
+
         Text {
             anchors.centerIn: parent
             text: "‹"
-            font.pixelSize: 34
+            font.pixelSize: 32
             color: "white"
         }
+
         MouseArea {
-            id: lma
+            id: leftMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -223,25 +311,27 @@ Window {
         }
     }
 
-    // Right Navigation Arrow Button
     Rectangle {
         anchors.right: parent.right
-        anchors.rightMargin: 48
+        anchors.rightMargin: 32
         anchors.verticalCenter: parent.verticalCenter
-        width: 52
-        height: 52
-        radius: 26
-        color: rma.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
-        border.color: Qt.rgba(1, 1, 1, 0.2)
+        width: 48
+        height: 48
+        radius: 24
+        color: rightMa.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(0, 0, 0, 0.45)
+        border.color: Qt.rgba(1, 1, 1, 0.20)
         border.width: 1
+        z: 200
+
         Text {
             anchors.centerIn: parent
             text: "›"
-            font.pixelSize: 34
+            font.pixelSize: 32
             color: "white"
         }
+
         MouseArea {
-            id: rma
+            id: rightMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -249,26 +339,8 @@ Window {
         }
     }
 
+    // Mouse wheel handler to scroll anywhere on screen
     WheelHandler {
         onWheel: (e) => (e.angleDelta.y + e.angleDelta.x) < 0 ? pv.incrementCurrentIndex() : pv.decrementCurrentIndex()
-    }
-
-    // Color palette preview capsules
-    Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 40
-        spacing: 8
-        Repeater {
-            model: pal ? [pal.bg, pal.bg2, pal.muted, pal.fg, pal.accent, pal.accent2] : []
-            Rectangle {
-                width: 28
-                height: 28
-                radius: 14
-                color: modelData
-                border.color: Qt.rgba(1, 1, 1, 0.35)
-                border.width: 1
-            }
-        }
     }
 }
