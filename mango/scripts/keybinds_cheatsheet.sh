@@ -5,6 +5,7 @@ cat << 'EOF' | fuzzel --dmenu --prompt "Keybinds ❯ " --width 65 --lines 20
 [ SYSTEM & LAUNCHER ]
 Alt + Return           ❯ Open Terminal (kitty)
 Alt + Space            ❯ Application Launcher (fuzzel)
+Super + E              ❯ Open File Manager (nautilus)
 Super + W              ❯ Wallpaper Picker & Theme Selector
 Super + K              ❯ Keybindings Cheatsheet
 Super + L              ❯ Toggle Game Mode (Disables compositor keys)

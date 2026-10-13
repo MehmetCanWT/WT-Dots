@@ -2,8 +2,8 @@
     font-family: "0xProto Nerd Font";
     font-size: 13px;
     font-weight: normal;
-    color: #b3bac3;
-    background-color: #1a0e0f;
+    color: #bac0cc;
+    background-color: #151618;
     padding: 0px 8px;
     margin: 3px 1px;
     border-radius: 8px;
@@ -21,49 +21,49 @@
 #custom-power {
     padding: 0px 8px;
     margin: 3px 1px;
-    background-color: #1a0e0f;
+    background-color: #151618;
     color: #e05f52;
 }
 
 #tags {
     padding: 0px 8px;
     margin: 3px 1px;
-    background-color: #1a0e0f;
+    background-color: #151618;
 }
 
 #tags.active {
-    color: #1a0e0f;
-    background-color: #97a0ac;
+    color: #151618;
+    background-color: #b5bcca;
     border-radius: 6px;
     margin: 3px 1px;
 }
 
 #tags.occupied {
-    color: #b3bac3;
-    background-color: #1a0e0f;
+    color: #bac0cc;
+    background-color: #151618;
 }
 
 #tags.empty {
-    color: #74737b;
-    background-color: #1a0e0f;
+    color: #757f8f;
+    background-color: #151618;
 }
 
 #tags.urgent {
     color: #e05f52;
-    background-color: #1a0e0f;
+    background-color: #151618;
 }
 
 #clock {
-    background-color: #1a0e0f;
-    color: #b3bac3;
+    background-color: #151618;
+    color: #bac0cc;
     padding: 0px 12px;
     margin: 3px 1px;
     border-radius: 8px;
 }
 
-#tray, #network, #volume, #battery {
-    background-color: #1a0e0f;
-    color: #b3bac3;
+#tray, #network, #volume, #backlight, #battery {
+    background-color: #151618;
+    color: #bac0cc;
     padding: 0px 8px;
     margin: 3px 1px;
     border-radius: 8px;

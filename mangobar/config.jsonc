@@ -13,6 +13,7 @@
         "tray",
         "network",
         "pulseaudio",
+        "backlight",
         "battery"
     ],
     "custom/power": {
@@ -38,9 +39,19 @@
         "format": "{icon} {volume}%",
         "format-muted": "󰝟 {volume}%",
         "icons": ["󰝟", "󰕿", "󰕾"],
-        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-click": "python3 ~/.config/mango/scripts/audio_menu.py",
+        "on-click-middle": "python3 ~/.config/mango/scripts/audio_menu.py",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
         "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 2%+",
         "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"
+    },
+    "backlight": {
+        "format": "{icon} {percent}%",
+        "icons": ["󰃚", "󰃛", "󰃜", "󰃝", "󰃞", "󰃟"],
+        "on-click": "bash ~/.config/mango/scripts/brightness_menu.sh",
+        "on-click-middle": "bash ~/.config/mango/scripts/brightness_menu.sh",
+        "on-scroll-up": "brightnessctl set +5%",
+        "on-scroll-down": "brightnessctl set 5%-"
     },
     "battery": {
         "format": "{icon} {percent}%",

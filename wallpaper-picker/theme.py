@@ -263,7 +263,7 @@ def apply(p, restart_bar=True):
     border-radius: 8px;
 }}
 
-#tray, #network, #volume, #battery {{
+#tray, #network, #volume, #backlight, #battery {{
     background-color: {p['bg']};
     color: {p['fg']};
     padding: 0px 8px;
