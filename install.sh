@@ -101,7 +101,7 @@ log "Setting up directories and default apps..."
 mkdir -p "${HOME}/Resimler/Wallpapers" "${HOME}/Resimler/Screenshots" "${HOME}/İndirilenler"
 
 if command -v xdg-mime >/dev/null 2>&1; then
-    xdg-mime default org.gnome.Nautilus.desktop inode/directory
+    xdg-mime default org.kde.dolphin.desktop inode/directory
 fi
 
 if command -v gsettings >/dev/null 2>&1; then

@@ -337,7 +337,8 @@ def apply(p, restart_bar=True):
 font=0xProto Nerd Font:size=13
 terminal=kitty
 width=40
-lines=12
+lines=4
+hide-before-typing=yes
 horizontal-pad=20
 vertical-pad=14
 inner-pad=8
@@ -474,6 +475,38 @@ color15 #ffffff
     gnome_accent = closest_gnome_accent(h_acc, s_acc)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "accent-color", gnome_accent], check=False)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], check=False)
+
+    # KDE / Qt6 / Dolphin color scheme integration
+    try:
+        import configparser
+        kg = Path("~/.config/kdeglobals").expanduser()
+        if kg.exists():
+            cfg = configparser.ConfigParser(interpolation=None)
+            cfg.optionxform = str
+            cfg.read(kg)
+
+            def to_rgb(x):
+                h = x.lstrip("#")
+                return ",".join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
+
+            acc, bg, bg2, fg = to_rgb(p['accent']), to_rgb(p['bg']), to_rgb(p['bg2']), to_rgb(p['fg'])
+            for s, k, v in [
+                ("Colors:Selection", "BackgroundNormal", acc),
+                ("Colors:Selection", "DecorationFocus", acc),
+                ("Colors:Selection", "DecorationHover", acc),
+                ("Colors:View", "BackgroundNormal", bg2),
+                ("Colors:View", "ForegroundNormal", fg),
+                ("Colors:Window", "BackgroundNormal", bg),
+                ("Colors:Window", "ForegroundNormal", fg),
+            ]:
+                if not cfg.has_section(s):
+                    cfg.add_section(s)
+                cfg.set(s, k, v)
+
+            with kg.open("w") as f:
+                cfg.write(f, space_around_delimiters=False)
+    except Exception:
+        pass
 
 
 def wallpaper(path):

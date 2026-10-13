@@ -21,8 +21,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main
 | **Compositor** | [MangoWM](https://github.com/DreamMaoMao/mango) (0.18) | Tiling Wayland compositor with layout support (Tile, Scroller, Dwindle) |
 | **Status Bar** | [mangobar](https://github.com/DreamMaoMao/mangobar) | Native layer-shell bar (IPC-connected workspaces, clock, audio, backlight, tray) |
 | **Terminal** | [Kitty](https://sw.kovidgoyal.net/kitty/) | 16 ANSI colors auto-generated from wallpaper, 0xProto font |
-| **File Manager** | [Nautilus](https://apps.gnome.org/Nautilus/) (GNOME Files) | Libadwaita dark mode, GTK4 accent colors dynamically synced |
-| **App Launcher** | [Fuzzel](https://codeberg.org/dnkl/fuzzel) | Curved borders, `filter-desktop=yes` hides KDE desktop files in MangoWM |
+| **File Manager** | [Dolphin](https://apps.kde.org/dolphin/) | Fast Qt6 file manager, split view, wallpaper accent color integration |
+| **App Launcher** | [Fuzzel](https://codeberg.org/dnkl/fuzzel) | Curved borders, `hide-before-typing=yes`, max 4 results |
 | **Notifications**| [Mako](https://github.com/emersion/mako) | Border & background colors synced with active palette |
 | **Wallpaper & Theme** | Custom PySide6 / QML | Fullscreen 3D coverflow picker (`Super + W`), 64-color quantization engine |
 | **Screenshots** | `grim` + `slurp` + `wl-copy` | Saves directly to `~/Resimler/Screenshots/` and copies to clipboard |
@@ -38,7 +38,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main
 |---|---|
 | `Alt + Return` | Open Terminal (`kitty`) |
 | `Alt + Space` | Application Launcher (`fuzzel`) |
-| `Super + E` | Open File Manager (`nautilus`) |
+| `Super + E` | Open File Manager (`dolphin`) |
 | `Super + W` | Open Wallpaper Carousel Picker |
 | `Super + K` | Keybindings Cheatsheet Popup |
 | `Super + L` | Toggle Game Mode (inhibits compositor keys, keeps `Alt+Tab`) |
