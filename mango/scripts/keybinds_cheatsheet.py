@@ -59,10 +59,14 @@ CATEGORIES = {
     ]
 }
 
-def rofi_menu(prompt, items):
+def rofi_menu(placeholder, items):
     input_str = "\n".join(items)
     res = subprocess.run(
-        ["rofi", "-dmenu", "-p", prompt, "-theme-str", "listview { lines: 8; require-input: false; } window { width: 620px; }"],
+        [
+            "rofi", "-dmenu",
+            "-p", "❯",
+            "-theme-str", f'entry {{ placeholder: "{placeholder}"; }} listview {{ lines: 8; require-input: false; }} window {{ width: 620px; }}'
+        ],
         input=input_str,
         text=True,
         capture_output=True
@@ -77,16 +81,17 @@ def main():
             for key, desc in items:
                 menu_items.append(f"{key:<24} ❯ {desc}")
 
-        choice = rofi_menu("Keybinds ❯ ", menu_items)
+        choice = rofi_menu("Search keybinds...", menu_items)
         if not choice:
             break
 
         # If user picked a category, open category sub-menu
         if choice in CATEGORIES:
+            cat_name = choice.split(None, 1)[-1] if " " in choice else choice
             cat_items = ["⬅ Back"]
             for key, desc in CATEGORIES[choice]:
                 cat_items.append(f"{key:<24} ❯ {desc}")
-            sub_choice = rofi_menu(f"{choice.split()[-1]} ❯ ", cat_items)
+            sub_choice = rofi_menu(f"Search {cat_name}...", cat_items)
             if sub_choice == "⬅ Back":
                 continue
             else:

@@ -38,18 +38,18 @@ def main():
     menu_lines = []
     for dev_id, name, is_def in sinks:
         check = "● " if is_def else "○ "
-        menu_lines.append(f"{check}󰓃 Output: {name} [ID:{dev_id}]")
+        menu_lines.append(f"{check}󰓃 Hoparlör: {name} [ID:{dev_id}]")
 
     for dev_id, name, is_def in sources:
         check = "● " if is_def else "○ "
-        menu_lines.append(f"{check}󰍬 Input: {name} [ID:{dev_id}]")
+        menu_lines.append(f"{check}󰍬 Mikrofon: {name} [ID:{dev_id}]")
 
-    menu_lines.append("󰝟 Toggle Output Mute")
-    menu_lines.append("󰍭 Toggle Input Mute")
+    menu_lines.append("󰝟 Hoparlör Sessize Al / Aç (Toggle)")
+    menu_lines.append("󰍭 Mikrofonu Sessize Al / Aç (Toggle)")
 
     fuzzel_input = "\n".join(menu_lines)
     proc = subprocess.run(
-        ["rofi", "-dmenu", "-p", " Audio Device "],
+        ["rofi", "-dmenu", "-p", " Ses Cihazı "],
         input=fuzzel_input,
         capture_output=True,
         text=True
@@ -59,9 +59,9 @@ def main():
     if not choice:
         return
 
-    if "Toggle Output Mute" in choice:
+    if "Hoparlör Sessize" in choice:
         subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
-    elif "Toggle Input Mute" in choice:
+    elif "Mikrofonu Sessize" in choice:
         subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
     else:
         m_id = re.search(r"\[ID:(\d+)\]", choice)

@@ -3,9 +3,9 @@
 
 CURR=$(brightnessctl -m | awk -F, '{print $4}')
 
-OPTS=$(printf "100%%  󰃠  Maximum Brightness\n80%%   󰃠  High Brightness\n60%%   󰃟  Balanced (Default)\n40%%   󰃞  Standard Brightness\n20%%   󰃝  Dim Light\n5%%    󰃚  Night Mode (Minimum)")
+OPTS=$(printf "100%%  󰃠  Maksimum Parlaklık\n80%%   󰃠  Yüksek Parlaklık\n60%%   󰃟  Dengeli (Varsayılan)\n40%%   󰃞  Standart Parlaklık\n20%%   󰃝  Loş Işık\n5%%    󰃚  Gece Modu (Minimum)")
 
-CHOICE=$(echo "$OPTS" | rofi -dmenu -p "󰃠 Brightness ($CURR) ")
+CHOICE=$(echo "$OPTS" | rofi -dmenu -p "󰃠 Parlaklık ($CURR) ")
 
 case "$CHOICE" in
   100%*) brightnessctl set 100% ;;
