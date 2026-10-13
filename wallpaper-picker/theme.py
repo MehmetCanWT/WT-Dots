@@ -336,6 +336,7 @@ def apply(p, restart_bar=True):
     write("~/.config/fuzzel/fuzzel.ini", f"""[main]
 font=0xProto Nerd Font:size=13
 terminal=kitty
+icon-theme=breeze
 width=40
 lines=4
 hide-before-typing=no

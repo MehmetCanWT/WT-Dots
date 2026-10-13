@@ -11,6 +11,48 @@ DESKTOP_DIRS = [
 
 CURRENT_DESKTOP = os.environ.get("XDG_CURRENT_DESKTOP", "mango").lower()
 
+CATEGORY_ICONS = {
+    "🎮 Games": "applications-games,input-gaming",
+    "📱 Apps": "applications-all,preferences-desktop",
+    "💻 Development": "applications-development,utilities-terminal",
+    "⚙️ System": "preferences-system,system-run"
+}
+
+FALLBACK_ICONS = {
+    "steam": "steam,applications-games",
+    "prism_launcher": "prism_launcher,applications-games",
+    "sunshine": "dev.lizardbyte.app.Sunshine,applications-games",
+    "antigravity": "antigravity,utilities-terminal,applications-development",
+    "nvim": "nvim,neovim,text-editor",
+    "kitty": "kitty,utilities-terminal",
+    "btop": "btop,utilities-terminal,system-monitor",
+    "firefox": "firefox,web-browser",
+    "obsidian": "obsidian,text-editor",
+    "vlc": "vlc,multimedia-player",
+    "bitchord": "bitchord,audio-player",
+    "localsend": "localsend,network-workgroup",
+    "libreoffice-writer": "libreoffice-writer,x-office-document",
+    "dolphin": "org.kde.dolphin,system-file-manager",
+    "wallpaper-picker": "preferences-desktop-wallpaper,preferences-desktop",
+    "nvidia-settings": "nvidia-settings,preferences-system",
+    "openrgb": "openrgb,preferences-system"
+}
+
+def resolve_icon(icon_str, bid):
+    if not icon_str:
+        clean_key = bid.replace(".desktop", "").lower()
+        return FALLBACK_ICONS.get(clean_key, "application-x-executable")
+    
+    # Check if absolute path without extension exists as .png
+    if icon_str.startswith("/") and not (icon_str.endswith(".png") or icon_str.endswith(".svg")):
+        if os.path.exists(icon_str + ".png"):
+            return icon_str + ".png"
+    if os.path.exists(icon_str):
+        return icon_str
+    
+    clean_name = os.path.basename(icon_str).replace(".png", "").replace(".svg", "")
+    return f"{icon_str},{clean_name}"
+
 def load_apps():
     apps = {}
     seen = set()
@@ -60,6 +102,7 @@ def load_apps():
                     apps[bid] = {
                         "name": name,
                         "exec": exec_cmd,
+                        "icon": icon,
                         "cats": set(cats),
                         "id": bid,
                         "file": f
@@ -71,13 +114,11 @@ def load_apps():
 def launch(target, apps):
     if not target:
         return
-    # If desktop id or matching app name
     target_lower = target.lower()
     for bid, app in apps.items():
         if target_lower == app["name"].lower() or target_lower == bid.lower() or target_lower in app["name"].lower():
             subprocess.Popen(["gtk-launch", bid], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
-    # Otherwise try running directly
     try:
         subprocess.Popen(target, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
@@ -86,11 +127,11 @@ def launch(target, apps):
 def main():
     apps = load_apps()
 
-    # Add custom entries if not present
     custom_system = {
         "wallpaper-picker.desktop": {
             "name": "Wallpaper Picker",
             "exec": "python3 ~/.config/wallpaper-picker/picker.py",
+            "icon": "preferences-desktop-wallpaper",
             "cats": {"Settings"},
             "id": "wallpaper-picker.desktop",
             "file": ""
@@ -118,12 +159,12 @@ def main():
         else:
             category_map["📱 Apps"].append((name, bid))
 
-    # Sort items within each category
     for cat in category_map:
         category_map[cat].sort(key=lambda x: x[0].lower())
 
     cat_keys = list(category_map.keys())
-    cat_menu_input = "\n".join(cat_keys)
+    cat_menu_lines = [f"{k}\x00icon\x1f{CATEGORY_ICONS.get(k, '')}" for k in cat_keys]
+    cat_menu_input = "\n".join(cat_menu_lines)
 
     # Level 1: Category selection
     res = subprocess.run(
@@ -148,11 +189,15 @@ def main():
         items = category_map[matched_cat]
         if not items:
             return
-        item_names = [name for name, _ in items]
-        lines_count = min(len(item_names), 4)
+        item_lines = []
+        for name, bid in items:
+            app_icon = resolve_icon(apps[bid].get("icon", ""), bid)
+            item_lines.append(f"{name}\x00icon\x1f{app_icon}")
+
+        lines_count = min(len(item_lines), 4)
         sub_res = subprocess.run(
             ["fuzzel", "--dmenu", f"--lines={lines_count}", f"--prompt={matched_cat.split()[-1]} > "],
-            input="\n".join(item_names),
+            input="\n".join(item_lines),
             text=True,
             capture_output=True
         )
