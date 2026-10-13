@@ -61,8 +61,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main
 ### Workspaces (Tags)
 | Key | Action |
 |---|---|
-| `Ctrl + 1..9` | Switch to workspace 1–9 |
-| `Alt + 1..9` | Move window to workspace 1–9 |
+| `Alt + 1..9` | Switch to workspace 1–9 |
+| `Ctrl + 1..9` | Move window to workspace 1–9 |
 | `Super + ← / →` | Previous / Next workspace |
 
 ### Media & Utility

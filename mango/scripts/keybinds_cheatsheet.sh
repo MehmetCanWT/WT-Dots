@@ -31,8 +31,8 @@ Alt + E                ❯ Scroller Preset 1.0 (Full Width)
 Alt + X                ❯ Scroller Switch Proportion Preset
 
 [ WORKSPACES (TAGS) ]
-Ctrl + 1..9            ❯ Switch to Workspace 1-9
-Alt + 1..9             ❯ Move Window to Workspace 1-9
+Alt + 1..9             ❯ Switch to Workspace 1-9
+Ctrl + 1..9            ❯ Move Window to Workspace 1-9
 Super + ← / →          ❯ Switch to Previous / Next Workspace
 Ctrl + Super + ← / →   ❯ Move Window to Previous / Next Workspace
 
