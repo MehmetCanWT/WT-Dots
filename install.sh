@@ -141,15 +141,24 @@ deploy_dir "${TARGET_DIR}/MangoHud" "MangoHud"
 chmod +x "${HOME}/.config/mango/scripts/"* "${HOME}/.config/wallpaper-picker/"*.py 2>/dev/null || true
 ok "Configurations deployed."
 
-# 5. User Directories, Discover App Unhide & File Association
+# 4.1 Deploy local binaries
+if [ -d "${TARGET_DIR}/local-bin" ]; then
+    mkdir -p "${HOME}/.local/bin"
+    cp -r "${TARGET_DIR}/local-bin/"* "${HOME}/.local/bin/"
+    chmod +x "${HOME}/.local/bin/"* 2>/dev/null || true
+fi
+
+# 5. User Directories, Hide Discover & File Association
 log "Setting up directories and desktop entries..."
 mkdir -p "${HOME}/Resimler/Wallpapers" "${HOME}/Resimler/Screenshots" "${HOME}/İndirilenler" "${HOME}/.local/share/applications"
 
-# Ensure Discover (Keşfet) is unhidden in MangoWM
-if [ -f "/usr/share/applications/org.kde.discover.desktop" ]; then
-    cp "/usr/share/applications/org.kde.discover.desktop" "${HOME}/.local/share/applications/"
-    sed -i '/OnlyShowIn=/d; /NotShowIn=/d' "${HOME}/.local/share/applications/org.kde.discover.desktop"
-fi
+# Ensure Discover (Keşfet) is hidden from Alt+Space launcher
+cat << 'EOF' > "${HOME}/.local/share/applications/org.kde.discover.desktop"
+[Desktop Entry]
+Type=Application
+Name=Discover
+NoDisplay=true
+EOF
 
 # 6. Setup and Start Systemd User Services for Cliphist
 log "Configuring clipboard daemon systemd services..."

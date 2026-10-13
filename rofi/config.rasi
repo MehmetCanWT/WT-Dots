@@ -1,12 +1,26 @@
 configuration {
-    modi: "drun,run,calc";
+    modi: "drun,calc";
     show-icons: true;
     icon-theme: "breeze";
     font: "0xProto Nerd Font 12";
     drun-display-format: "{name}";
-    display-drun: "❯";
-    display-run: "λ";
-    display-calc: "🖩";
+    display-drun: "❯ Apps";
+    display-calc: "🖩 Calc";
+
+    /* Mode switching: Tab / Shift+Tab toggles between Apps and Calc */
+    kb-mode-next: "Tab,Shift+Right,Control+Tab";
+    kb-mode-previous: "ISO_Left_Tab,Shift+Left,Control+ISO_Left_Tab";
+    kb-row-up: "Up,Control+p,Control+k";
+    kb-row-down: "Down,Control+n,Control+j";
+    kb-element-next: "";
+    kb-element-prev: "";
+
+    calc {
+        calc-command: "echo -n '{result}' | wl-copy";
+        no-history: true;
+        hint-result: " = ";
+        hint-welcome: "Type math (e.g. 1+1 or c 1+1)...";
+    }
 }
 
 @theme "~/.config/rofi/theme.rasi"

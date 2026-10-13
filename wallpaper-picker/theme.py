@@ -358,8 +358,36 @@ window {{
 }}
 
 mainbox {{
-    children: [ inputbar, listview ];
+    children: [ inputbar, message, listview, mode-switcher ];
     spacing: 8px;
+}}
+
+message {{
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: transparent;
+    border: 1px;
+    border-color: @border-col;
+}}
+
+textbox {{
+    text-color: @active-fg;
+}}
+
+mode-switcher {{
+    spacing: 8px;
+}}
+
+button {{
+    padding: 4px 8px;
+    border-radius: 6px;
+    background-color: transparent;
+    text-color: @fg;
+}}
+
+button selected {{
+    background-color: @accent;
+    text-color: @active-fg;
 }}
 
 inputbar {{
