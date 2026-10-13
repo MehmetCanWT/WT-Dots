@@ -33,7 +33,8 @@ PKGS=(
     mako
     swaybg
     kitty
-    nautilus
+    mangohud
+    mangohud.i686
     grim
     slurp
     brightnessctl
@@ -92,6 +93,7 @@ deploy_dir "${TARGET_DIR}/environment.d" "environment.d"
 deploy_dir "${TARGET_DIR}/gtk-3.0" "gtk-3.0"
 deploy_dir "${TARGET_DIR}/gtk-4.0" "gtk-4.0"
 deploy_dir "${TARGET_DIR}/xdg-desktop-portal" "xdg-desktop-portal"
+deploy_dir "${TARGET_DIR}/MangoHud" "MangoHud"
 
 chmod +x "${HOME}/.config/mango/scripts/"* "${HOME}/.config/wallpaper-picker/"*.py 2>/dev/null || true
 ok "Configurations deployed."
