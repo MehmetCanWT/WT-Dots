@@ -442,17 +442,11 @@ color7  {p['fg']}
 color15 #ffffff
 """
     write("~/.config/kitty/current-theme.conf", kitty_theme)
-    write("~/.config/kitty/dark-theme.auto.conf", kitty_theme)
-    kc = Path("~/.config/kitty/kitty.conf").expanduser()
-    if not kc.exists() or "current-theme.conf" not in kc.read_text():
-        with kc.open("a") as f:
-            f.write("include current-theme.conf\n")
     sh("pkill -SIGUSR1 -x kitty 2>/dev/null || true")
 
-    # GTK 4 / Libadwaita colors for Nautilus & GTK apps
-    write("~/.config/gtk-4.0/gtk.css", f"""@define-color accent_color {p['accent']};
-@define-color accent_bg_color {p['accent']};
-@define-color accent_fg_color {p['active_fg']};
+    # GTK 3 & 4 / Libadwaita colors for Nautilus & GTK apps
+    gtk_common = f"@define-color accent_color {p['accent']};\n@define-color accent_bg_color {p['accent']};\n@define-color accent_fg_color {p['active_fg']};"
+    write("~/.config/gtk-4.0/gtk.css", f"""{gtk_common}
 @define-color window_bg_color {p['bg']};
 @define-color window_fg_color {p['fg']};
 @define-color view_bg_color {p['bg2']};
@@ -470,9 +464,7 @@ color15 #ffffff
     border-radius: 6px;
 }}
 """)
-    write("~/.config/gtk-3.0/gtk.css", f"""@define-color accent_color {p['accent']};
-@define-color accent_bg_color {p['accent']};
-@define-color accent_fg_color {p['active_fg']};
+    write("~/.config/gtk-3.0/gtk.css", f"""{gtk_common}
 @define-color theme_selected_bg_color {p['accent']};
 @define-color theme_selected_fg_color {p['active_fg']};
 """)
@@ -481,9 +473,6 @@ color15 #ffffff
     gnome_accent = closest_gnome_accent(h_acc, s_acc)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "accent-color", gnome_accent], check=False)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], check=False)
-    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "font-name", "Cantarell 10"], check=False)
-    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "document-font-name", "Cantarell 10"], check=False)
-    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "monospace-font-name", "0xProto Nerd Font 10"], check=False)
 
 
 def wallpaper(path):

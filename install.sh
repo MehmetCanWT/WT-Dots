@@ -104,6 +104,12 @@ if command -v xdg-mime >/dev/null 2>&1; then
     xdg-mime default org.gnome.Nautilus.desktop inode/directory
 fi
 
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface font-name "Cantarell 10" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface document-font-name "Cantarell 10" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface monospace-font-name "0xProto Nerd Font 10" 2>/dev/null || true
+fi
+
 # 6. Apply Environment Variables to DBus
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
