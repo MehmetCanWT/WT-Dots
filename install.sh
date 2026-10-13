@@ -91,6 +91,7 @@ deploy_dir "${TARGET_DIR}/wallpaper-picker" "wallpaper-picker"
 deploy_dir "${TARGET_DIR}/environment.d" "environment.d"
 deploy_dir "${TARGET_DIR}/gtk-3.0" "gtk-3.0"
 deploy_dir "${TARGET_DIR}/gtk-4.0" "gtk-4.0"
+deploy_dir "${TARGET_DIR}/xdg-desktop-portal" "xdg-desktop-portal"
 
 chmod +x "${HOME}/.config/mango/scripts/"* "${HOME}/.config/wallpaper-picker/"*.py 2>/dev/null || true
 ok "Configurations deployed."
@@ -106,6 +107,9 @@ fi
 # 6. Apply Environment Variables to DBus
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY \
+        XDG_CURRENT_DESKTOP \
+        XDG_SESSION_TYPE \
         QT_QPA_PLATFORMTHEME=kde \
         QT_STYLE_OVERRIDE=Breeze-Dark || true
 fi

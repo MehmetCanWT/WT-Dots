@@ -12,9 +12,8 @@
 @define-color popover_bg_color #1c1213;
 @define-color popover_fg_color #ebe5e5;
 
-:selected,
-row:selected,
 .navigation-sidebar > row:selected {
     background-color: @accent_bg_color;
     color: @accent_fg_color;
+    border-radius: 6px;
 }

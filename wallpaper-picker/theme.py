@@ -432,11 +432,10 @@ color15 {lighten(p['fg'], 12)}
 @define-color popover_bg_color {p['bg']};
 @define-color popover_fg_color {p['fg']};
 
-:selected,
-row:selected,
 .navigation-sidebar > row:selected {{
     background-color: @accent_bg_color;
     color: @accent_fg_color;
+    border-radius: 6px;
 }}
 """)
     write("~/.config/gtk-3.0/gtk.css", f"""@define-color accent_color {p['accent']};
@@ -450,6 +449,9 @@ row:selected,
     gnome_accent = closest_gnome_accent(h_acc, s_acc)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "accent-color", gnome_accent], check=False)
     subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], check=False)
+    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "font-name", "Cantarell 10"], check=False)
+    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "document-font-name", "Cantarell 10"], check=False)
+    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "monospace-font-name", "0xProto Nerd Font 10"], check=False)
 
 
 def wallpaper(path):
