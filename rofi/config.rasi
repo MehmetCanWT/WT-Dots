@@ -4,12 +4,14 @@ configuration {
     icon-theme: "breeze";
     font: "0xProto Nerd Font 12";
     drun-display-format: "{name}";
-    display-drun: "❯ Apps";
-    display-calc: "🖩 Calc";
+    display-drun: "Apps";
+    display-calc: "Calc";
 
-    /* Mode switching: Tab / Shift+Tab toggles between Apps and Calc */
-    kb-mode-next: "Tab,Shift+Right,Control+Tab";
-    kb-mode-previous: "ISO_Left_Tab,Shift+Left,Control+ISO_Left_Tab";
+    /* Mode switching: Left/Right arrow keys directly, plus Tab/Shift+Tab */
+    kb-mode-next: "Right,Tab,Shift+Right,Control+Tab";
+    kb-mode-previous: "Left,ISO_Left_Tab,Shift+Left,Control+ISO_Left_Tab";
+    kb-move-char-back: "Control+b";
+    kb-move-char-forward: "Control+f";
     kb-row-up: "Up,Control+p";
     kb-row-down: "Down,Control+n";
     kb-element-next: "";
@@ -19,7 +21,7 @@ configuration {
         calc-command: "echo -n '{result}' | wl-copy";
         no-history: true;
         hint-result: " = ";
-        hint-welcome: "Calculate (e.g. 5m, 100k, 1+1)...";
+        hint-welcome: "";
     }
 }
 

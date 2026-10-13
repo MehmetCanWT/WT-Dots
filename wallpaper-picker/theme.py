@@ -401,8 +401,7 @@ prompt {{
 }}
 
 entry {{
-    placeholder: "Search...";
-    placeholder-color: #777777;
+    placeholder: "";
     text-color: @fg;
 }}
 
