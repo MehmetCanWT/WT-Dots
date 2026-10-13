@@ -253,12 +253,7 @@ Window {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    if (pv.currentIndex === index)
-                        bridge.commit(index);
-                    else
-                        pv.currentIndex = index;
-                }
+                onClicked: bridge.commit(index)
             }
         }
 

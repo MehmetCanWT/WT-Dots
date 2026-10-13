@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""ricemood / node-vibrant inspired color extractor & theme applier."""
-import colorsys, hashlib, json, os, subprocess, sys
+"""ricemood / node-vibrant / Material You inspired color extractor & theme applier."""
+import colorsys, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 from PIL import Image
 
@@ -79,22 +79,15 @@ def darken(hex_str, amount):
     return hsl_to_hex(h, s, l - (amount / 100.0))
 
 
-def saturate(hex_str, amount):
-    h, s, l = hex_to_hsl(hex_str)
-    return hsl_to_hex(h, s + (amount / 100.0), l)
-
-
-def desaturate(hex_str, amount):
-    h, s, l = hex_to_hsl(hex_str)
-    return hsl_to_hex(h, s - (amount / 100.0), l)
-
-
 def normalize_accent(hex_str):
     """Normalize accent to ensure punchy saturation and optimal contrast on dark backgrounds."""
     h, s, l = hex_to_hsl(hex_str)
-    if s < 0.15:
-        return hsl_to_hex(h, 0.20, 0.75)
-    s = min(0.95, max(0.65, s * 1.3))
+    if s < 0.16:
+        # Monochrome / slate silver for grayscale wallpapers
+        return hsl_to_hex(h, 0.12, 0.78)
+    # Boost saturation for punchy UI
+    s = min(0.95, max(0.55, s * 1.25))
+    # Lightness clamped to [0.52, 0.62] for perfect contrast
     l = min(0.62, max(0.52, l))
     return hsl_to_hex(h, s, l)
 
@@ -138,7 +131,7 @@ def closest_gnome_accent(h, s):
 
 
 def extract_vibrant_swatches(image_path):
-    """Vibrant color extraction with 64-color quantization and saturated fallback."""
+    """Quantize to 64 swatches and select the best chromatic focal color."""
     im = Image.open(still(image_path)).convert("RGB")
     im.thumbnail((256, 256))
     q = im.quantize(64)
@@ -146,54 +139,41 @@ def extract_vibrant_swatches(image_path):
     colors = q.getcolors()
 
     swatches = []
-    max_pop = max((cnt for cnt, _ in colors), default=1)
     for cnt, idx in colors:
         r, g, b = (pal[idx * 3 + i] / 255.0 for i in range(3))
         h, s, l = rgb_to_hsl(r, g, b)
-        swatches.append({'r': r, 'g': g, 'b': b, 'h': h, 's': s, 'l': l, 'pop': cnt})
+        swatches.append({'r': r, 'g': g, 'b': b, 'h': h, 's': s, 'l': l, 'cnt': cnt})
 
-    profiles = {
-        'Vibrant':      {'target_s': 1.0,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.50, 'min_l': 0.20, 'max_l': 0.75},
-        'LightVibrant': {'target_s': 0.9,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.70, 'min_l': 0.50, 'max_l': 0.95},
-        'DarkVibrant':  {'target_s': 0.9,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.25, 'min_l': 0.10, 'max_l': 0.45},
-        'Muted':        {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.50, 'min_l': 0.25, 'max_l': 0.75},
-        'LightMuted':   {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.70, 'min_l': 0.50, 'max_l': 0.95},
-        'DarkMuted':    {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.25, 'min_l': 0.10, 'max_l': 0.45},
-    }
+    # Discard extreme blacks, whites and purely desaturated grays
+    chroma_candidates = [sw for sw in swatches if 0.12 <= sw['l'] <= 0.88 and sw['s'] >= 0.18]
+    if chroma_candidates:
+        max_log_pop = max(math.log1p(sw['cnt']) for sw in chroma_candidates)
+        def score(sw):
+            sat_score = sw['s']
+            l_score = max(0.0, 1.0 - abs(sw['l'] - 0.54) * 2.0)
+            pop_score = math.log1p(sw['cnt']) / max_log_pop if max_log_pop > 0 else 0
+            return sat_score * 0.55 + l_score * 0.30 + pop_score * 0.15
 
-    results = {}
-    for name, prof in profiles.items():
-        best, best_score = None, -1.0
-        for sw in swatches:
-            s, l, pop = sw['s'], sw['l'], sw['pop']
-            if not (prof['min_s'] <= s <= prof['max_s'] and prof['min_l'] <= l <= prof['max_l']):
-                continue
-            score = (1.0 - abs(s - prof['target_s'])) * 0.40 + (1.0 - abs(l - prof['target_l'])) * 0.45 + (pop / max_pop) * 0.15
-            if score > best_score:
-                best_score = score
-                best = sw
-        if best:
-            results[name] = rgb_to_hex(best['r'], best['g'], best['b'])
-
-    # Fallback to most saturated visible color
-    viable = [s for s in swatches if 0.15 <= s['l'] <= 0.85]
-    if viable:
-        best_sat = max(viable, key=lambda s: s['s'])
-        fallback = rgb_to_hex(best_sat['r'], best_sat['g'], best_sat['b'])
+        best = max(chroma_candidates, key=score)
+        vibrant = rgb_to_hex(best['r'], best['g'], best['b'])
+        dark_vibrant = hsl_to_hex(best['h'], min(1.0, best['s'] * 1.1), 0.22)
+        light_vibrant = hsl_to_hex(best['h'], min(1.0, best['s'] * 1.1), 0.72)
     else:
-        fallback = rgb_to_hex(swatches[0]['r'], swatches[0]['g'], swatches[0]['b']) if swatches else "#7798d9"
+        viable = [sw for sw in swatches if 0.20 <= sw['l'] <= 0.80]
+        best = max(viable, key=lambda sw: sw['cnt']) if viable else swatches[0]
+        vibrant = rgb_to_hex(best['r'], best['g'], best['b'])
+        dark_vibrant = hsl_to_hex(best['h'], 0.10, 0.20)
+        light_vibrant = hsl_to_hex(best['h'], 0.15, 0.75)
 
-    results.setdefault('Vibrant', fallback)
-    results.setdefault('LightVibrant', lighten(results['Vibrant'], 25))
-    results.setdefault('DarkVibrant', darken(results['Vibrant'], 25))
-    results.setdefault('Muted', desaturate(results['Vibrant'], 35))
-    results.setdefault('LightMuted', lighten(results['Muted'], 25))
-    results.setdefault('DarkMuted', darken(results['Muted'], 25))
-    return results
+    return {
+        'Vibrant': vibrant,
+        'DarkVibrant': dark_vibrant,
+        'LightVibrant': light_vibrant,
+    }
 
 
 def palette(path):
-    key = hashlib.sha1(f"{path}{os.path.getmtime(path)}".encode()).hexdigest()
+    key = hashlib.sha1(f"v5:{path}:{os.path.getmtime(path)}".encode()).hexdigest()
     cf = CACHE / (key + ".vibrant.json")
     if cf.exists():
         try:
@@ -231,7 +211,6 @@ def palette(path):
         "vibrant": sw['Vibrant'],
         "dark_vibrant": sw.get('DarkVibrant', bg),
         "light_vibrant": sw.get('LightVibrant', accent2),
-        "dark_muted": sw.get('DarkMuted', bg2),
     }
     cf.write_text(json.dumps(p))
     return p
@@ -340,7 +319,7 @@ def apply(p, restart_bar=True):
 }}
 """)
     if restart_bar:
-        sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
+        sh("pkill -9 -x mangobar; sleep 0.08; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
 
     # mango window colors
     tc = Path("~/.config/mango/theme.conf").expanduser()
@@ -474,21 +453,45 @@ row:selected,
 
 
 def wallpaper(path):
-    p = Path(path)
-    new = (f"mpvpaper -o 'no-audio loop' ALL '{p}'" if p.suffix.lower() in VIDEO
-           else f"swaybg -i '{p}' -m fill")
-    sh(f"old=$(pgrep -x 'swaybg|mpvpaper'); {new} & sleep 0.3; kill $old 2>/dev/null")
+    p = Path(path).resolve()
+    old_pids = []
+    try:
+        out = subprocess.check_output(["pgrep", "-f", "swaybg|mpvpaper"], text=True)
+        old_pids = [int(x) for x in out.strip().split() if x.isdigit()]
+    except Exception:
+        pass
+
+    cmd = ["mpvpaper", "-o", "no-audio loop", "ALL", str(p)] if p.suffix.lower() in VIDEO else ["swaybg", "-i", str(p), "-m", "fill"]
+    subprocess.Popen(cmd, start_new_session=True)
+
+    time.sleep(0.18)
+    for pid in old_pids:
+        try:
+            os.kill(pid, 15)
+        except ProcessLookupError:
+            pass
+
     (CACHE / "current").write_text(str(p))
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--restore":
         cur = CACHE / "current"
-        if cur.exists() and Path(cur.read_text()).exists():
-            sys.argv[1:] = [cur.read_text(), "--wall"]
+        if cur.exists() and Path(cur.read_text().strip()).exists():
+            f = cur.read_text().strip()
+            apply(palette(f))
+            wallpaper(f)
+            sys.exit(0)
         else:
-            sh("swaybg -c 201b14")
-            sys.exit()
+            walls = sorted((p for p in (HOME / "Resimler/Wallpapers").iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"} | VIDEO), key=os.path.getmtime, reverse=True)
+            if walls:
+                f = str(walls[0])
+                apply(palette(f))
+                wallpaper(f)
+                sys.exit(0)
+            else:
+                sh("swaybg -c 201b14")
+                sys.exit(0)
     if len(sys.argv) > 1:
         f = sys.argv[1]
         apply(palette(f))

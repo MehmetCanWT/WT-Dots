@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import atexit, fcntl, hashlib, os, subprocess, sys
+import atexit, fcntl, hashlib, os, subprocess, sys, time
 from pathlib import Path
 from PIL import Image
 from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
@@ -29,7 +29,8 @@ def restore_bar():
     if _bar_restored:
         return
     _bar_restored = True
-    subprocess.run(["pkill", "-x", "mangobar"], check=False)
+    subprocess.run(["pkill", "-9", "-x", "mangobar"], check=False)
+    time.sleep(0.08)
     subprocess.Popen([
         "mangobar",
         "-c", str(Path.home() / ".config/mangobar/config.jsonc"),

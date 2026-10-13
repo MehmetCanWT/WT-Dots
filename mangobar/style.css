@@ -2,7 +2,7 @@
     font-family: "0xProto Nerd Font";
     font-size: 13px;
     font-weight: normal;
-    color: #ebe5e6;
+    color: #ebe5e5;
     background-color: #1c1213;
     padding: 0px 8px;
     margin: 3px 1px;
@@ -33,14 +33,14 @@
 
 #tags.active {
     color: #ffffff;
-    background-color: #f91018;
+    background-color: #f71219;
     font-weight: bold;
     border-radius: 6px;
     margin: 3px 1px;
 }
 
 #tags.occupied {
-    color: #ebe5e6;
+    color: #ebe5e5;
     background-color: #1c1213;
 }
 
@@ -56,7 +56,7 @@
 
 #clock {
     background-color: #1c1213;
-    color: #ebe5e6;
+    color: #ebe5e5;
     padding: 0px 12px;
     margin: 3px 1px;
     border-radius: 8px;
@@ -64,7 +64,7 @@
 
 #tray, #network, #volume, #pulseaudio, #backlight, #battery {
     background-color: #1c1213;
-    color: #ebe5e6;
+    color: #ebe5e5;
     padding: 0px 8px;
     margin: 3px 1px;
     border-radius: 8px;
