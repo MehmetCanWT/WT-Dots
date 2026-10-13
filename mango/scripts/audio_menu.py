@@ -47,10 +47,14 @@ def main():
     menu_lines.append("󰝟 Hoparlör Sessize Al / Aç (Toggle)")
     menu_lines.append("󰍭 Mikrofonu Sessize Al / Aç (Toggle)")
 
-    fuzzel_input = "\n".join(menu_lines)
+    rofi_input = "\n".join(menu_lines)
+    lines_count = min(10, len(menu_lines))
     proc = subprocess.run(
-        ["rofi", "-dmenu", "-p", " Ses Cihazı "],
-        input=fuzzel_input,
+        [
+            "rofi", "-dmenu",
+            "-theme-str", f"mainbox {{ children: [ listview ]; }} listview {{ lines: {lines_count}; }} window {{ width: 520px; }}"
+        ],
+        input=rofi_input,
         capture_output=True,
         text=True
     )

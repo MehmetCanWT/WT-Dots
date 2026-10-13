@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Minimal Power Menu via fuzzel
+# Power Menu via Rofi
 
 SHUTDOWN="  Kapat"
 REBOOT="󰜉  Yeniden Başlat"
+LOCK="  Kilitle"
 SUSPEND="󰤄  Askıya Al"
 LOGOUT="󰍃  Çıkış Yap"
 
-CHOSEN=$(printf "%s\n%s\n%s\n%s" \
+CHOSEN=$(printf "%s\n%s\n%s\n%s\n%s" \
   "$SHUTDOWN" \
   "$REBOOT" \
+  "$LOCK" \
   "$SUSPEND" \
-  "$LOGOUT" | rofi -dmenu -p "  ")
+  "$LOGOUT" | rofi -dmenu -theme-str 'mainbox { children: [ listview ]; } listview { lines: 5; } window { width: 320px; }')
 
 case "$CHOSEN" in
   "$SHUTDOWN")
@@ -18,6 +20,9 @@ case "$CHOSEN" in
     ;;
   "$REBOOT")
     systemctl reboot
+    ;;
+  "$LOCK")
+    loginctl lock-session
     ;;
   "$SUSPEND")
     systemctl suspend
