@@ -11,12 +11,6 @@ DESKTOP_DIRS = [
 
 CURRENT_DESKTOP = os.environ.get("XDG_CURRENT_DESKTOP", "mango").lower()
 
-CATEGORY_ICONS = {
-    "🎮 Games": "applications-games,input-gaming",
-    "📱 Apps": "applications-all,preferences-desktop",
-    "💻 Development": "applications-development,utilities-terminal",
-    "⚙️ System": "preferences-system,system-run"
-}
 
 FALLBACK_ICONS = {
     "steam": "steam,applications-games",
@@ -140,10 +134,10 @@ def main():
     apps.update(custom_system)
 
     category_map = {
-        "🎮 Games": [],
-        "📱 Apps": [],
-        "💻 Development": [],
-        "⚙️ System": []
+        "Games": [],
+        "Apps": [],
+        "Development": [],
+        "System": []
     }
 
     for bid, app in apps.items():
@@ -151,20 +145,19 @@ def main():
         cats = app["cats"]
         bid_low = bid.lower()
         if "game" in bid_low or "steam" in bid_low or "prism" in bid_low or "sunshine" in bid_low or "Game" in cats:
-            category_map["🎮 Games"].append((name, bid))
+            category_map["Games"].append((name, bid))
         elif "Development" in cats or "IDE" in cats or "TerminalEmulator" in cats or name in ["Antigravity 2.0", "Neovim", "kitty", "btop++"]:
-            category_map["💻 Development"].append((name, bid))
+            category_map["Development"].append((name, bid))
         elif "Settings" in cats or "System" in cats or "FileManager" in cats or name in ["Dolphin", "Wallpaper Picker", "OpenRGB", "NVIDIA X Server Settings"]:
-            category_map["⚙️ System"].append((name, bid))
+            category_map["System"].append((name, bid))
         else:
-            category_map["📱 Apps"].append((name, bid))
+            category_map["Apps"].append((name, bid))
 
     for cat in category_map:
         category_map[cat].sort(key=lambda x: x[0].lower())
 
     cat_keys = list(category_map.keys())
-    cat_menu_lines = [f"{k}\x00icon\x1f{CATEGORY_ICONS.get(k, '')}" for k in cat_keys]
-    cat_menu_input = "\n".join(cat_menu_lines)
+    cat_menu_input = "\n".join(cat_keys)
 
     # Level 1: Category selection
     res = subprocess.run(
@@ -196,7 +189,7 @@ def main():
 
         lines_count = min(len(item_lines), 4)
         sub_res = subprocess.run(
-            ["fuzzel", "--dmenu", f"--lines={lines_count}", f"--prompt={matched_cat.split()[-1]} > "],
+            ["fuzzel", "--dmenu", f"--lines={lines_count}", f"--prompt={matched_cat} > "],
             input="\n".join(item_lines),
             text=True,
             capture_output=True
