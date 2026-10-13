@@ -22,7 +22,10 @@ Alt + Middle Click     ❯ Toggle Fullscreen
 
 [ WINDOW STATES & LAYOUT ]
 Super + D              ❯ Show / Hide Desktop (Toggle All Windows)
-Alt + \                ❯ Toggle Floating Window
+Alt + \                ❯ Toggle Floating Window (Üste Al)
+Alt + C                ❯ Center Floating Window (Ortaya Al)
+Super + Left Click     ❯ Move Window (Sürükle)
+Super + Right Click    ❯ Resize Window (Boyutlandır)
 Alt + A                ❯ Toggle Maximize Screen
 Alt + Shift + F        ❯ Toggle Fake Fullscreen
 Alt + Z                ❯ Toggle Scratchpad
