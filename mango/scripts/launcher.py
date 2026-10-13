@@ -157,12 +157,21 @@ def main():
         category_map[cat].sort(key=lambda x: x[0].lower())
 
     cat_keys = list(category_map.keys())
-    cat_menu_input = "\n".join(cat_keys)
 
-    # Level 1: Category selection
+    # Put 4 categories first (occupies initial 4 lines, no icons)
+    main_menu_lines = list(cat_keys)
+
+    # Followed by all apps with their icons for instant fuzzy search
+    for bid, app in sorted(apps.items(), key=lambda x: x[1]["name"].lower()):
+        app_icon = resolve_icon(app.get("icon", ""), bid)
+        main_menu_lines.append(f"{app['name']}\x00icon\x1f{app_icon}")
+
+    main_menu_input = "\n".join(main_menu_lines)
+
+    # Level 1: Launcher
     res = subprocess.run(
-        ["fuzzel", "--dmenu", "--lines=4", "--prompt=Category > "],
-        input=cat_menu_input,
+        ["fuzzel", "--dmenu", "--lines=4", "--prompt=> "],
+        input=main_menu_input,
         text=True,
         capture_output=True
     )
@@ -171,15 +180,9 @@ def main():
     if not choice:
         return
 
-    # Check if choice is one of the 4 categories
-    matched_cat = None
-    for k in cat_keys:
-        if choice == k or choice.lower() in k.lower():
-            matched_cat = k
-            break
-
-    if matched_cat:
-        items = category_map[matched_cat]
+    # If user selected an exact category
+    if choice in cat_keys:
+        items = category_map[choice]
         if not items:
             return
         item_lines = []
@@ -189,7 +192,7 @@ def main():
 
         lines_count = min(len(item_lines), 4)
         sub_res = subprocess.run(
-            ["fuzzel", "--dmenu", f"--lines={lines_count}", f"--prompt={matched_cat} > "],
+            ["fuzzel", "--dmenu", f"--lines={lines_count}", f"--prompt={choice} > "],
             input="\n".join(item_lines),
             text=True,
             capture_output=True
@@ -198,7 +201,7 @@ def main():
         if selected_app:
             launch(selected_app, apps)
     else:
-        # User typed an app name directly on level 1
+        # User selected an application directly or typed a search query
         launch(choice, apps)
 
 if __name__ == "__main__":
