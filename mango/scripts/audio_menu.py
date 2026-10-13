@@ -49,7 +49,7 @@ def main():
 
     fuzzel_input = "\n".join(menu_lines)
     proc = subprocess.run(
-        ["fuzzel", "--dmenu", "--prompt", " Ses Cihazı > ", "--lines", str(min(10, len(menu_lines))), "--width", "42"],
+        ["rofi", "-dmenu", "-p", " Ses Cihazı "],
         input=fuzzel_input,
         capture_output=True,
         text=True

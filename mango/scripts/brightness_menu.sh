@@ -5,7 +5,7 @@ CURR=$(brightnessctl -m | awk -F, '{print $4}')
 
 OPTS=$(printf "100%%  󰃠  Maksimum Parlaklık\n80%%   󰃠  Yüksek Parlaklık\n60%%   󰃟  Dengeli (Varsayılan)\n40%%   󰃞  Standart Parlaklık\n20%%   󰃝  Loş Işık\n5%%    󰃚  Gece Modu (Minimum)")
 
-CHOICE=$(echo "$OPTS" | fuzzel --dmenu --prompt "󰃠 Parlaklık ($CURR) > " --lines 6 --width 28)
+CHOICE=$(echo "$OPTS" | rofi -dmenu -p "󰃠 Parlaklık ($CURR) ")
 
 case "$CHOICE" in
   100%*) brightnessctl set 100% ;;

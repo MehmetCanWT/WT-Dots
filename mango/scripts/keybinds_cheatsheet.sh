@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Keybindings Cheatsheet for MangoWM displayed via fuzzel
 
-cat << 'EOF' | fuzzel --dmenu --prompt "Keybinds ❯ " --width 65 --lines 20
+cat << 'EOF' | rofi -dmenu -p "Keybinds ❯ "
 [ SYSTEM & LAUNCHER ]
 Alt + Return           ❯ Open Terminal (kitty)
-Alt + Space            ❯ Application Launcher (fuzzel)
+Alt + Space            ❯ Application Launcher (rofi)
 Super + E              ❯ Open File Manager (dolphin)
 Super + W              ❯ Wallpaper Picker & Theme Selector
 Super + K              ❯ Keybindings Cheatsheet

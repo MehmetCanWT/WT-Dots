@@ -29,7 +29,7 @@ cd "${TARGET_DIR}"
 # 2. Install Dependencies
 log "Checking and installing system packages..."
 PKGS=(
-    fuzzel
+    rofi
     mako
     swaybg
     kitty
@@ -85,7 +85,7 @@ deploy_dir() {
 
 deploy_dir "${TARGET_DIR}/mango" "mango"
 deploy_dir "${TARGET_DIR}/mangobar" "mangobar"
-deploy_dir "${TARGET_DIR}/fuzzel" "fuzzel"
+deploy_dir "${TARGET_DIR}/rofi" "rofi"
 deploy_dir "${TARGET_DIR}/mako" "mako"
 deploy_dir "${TARGET_DIR}/kitty" "kitty"
 deploy_dir "${TARGET_DIR}/wallpaper-picker" "wallpaper-picker"

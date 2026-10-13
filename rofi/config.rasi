@@ -1,0 +1,11 @@
+configuration {
+    modi: "drun,run";
+    show-icons: true;
+    icon-theme: "breeze";
+    font: "0xProto Nerd Font 12";
+    drun-display-format: "{name}";
+    display-drun: "❯";
+    display-run: "λ";
+}
+
+@theme "~/.config/rofi/theme.rasi"

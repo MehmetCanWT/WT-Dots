@@ -10,7 +10,7 @@ CHOSEN=$(printf "%s\n%s\n%s\n%s" \
   "$SHUTDOWN" \
   "$REBOOT" \
   "$SUSPEND" \
-  "$LOGOUT" | fuzzel --dmenu --prompt "  " --lines 4 --width 18)
+  "$LOGOUT" | rofi -dmenu -p "  ")
 
 case "$CHOSEN" in
   "$SHUTDOWN")
