@@ -389,17 +389,12 @@ button selected {{
 }}
 
 inputbar {{
-    children: [ prompt, entry ];
-    spacing: 8px;
+    children: [ entry ];
     padding: 8px 12px;
     border: 1px;
     border-radius: 6px;
     border-color: @border-col;
     background-color: transparent;
-}}
-
-prompt {{
-    text-color: #777777;
 }}
 
 entry {{
