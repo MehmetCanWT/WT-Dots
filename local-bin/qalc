@@ -1,16 +1,37 @@
 #!/bin/bash
-# Wrapper for qalc to strip optional "c " prefix (e.g. "c 1+1" -> "1+1")
-# so typing "c 1+1" evaluates as math instead of light speed constant.
-args=("$@")
-if [ ${#args[@]} -gt 0 ]; then
-    last_idx=$((${#args[@]} - 1))
-    last_arg="${args[$last_idx]}"
+# Wrapper for qalc:
+# 1. Adds -nounits so 'm' / 'M' means million (not meters) and 'k' / 'K' means thousand (not Kelvin).
+# 2. Sets decimal_comma 0 so '2.5' is recognized as 2.5 regardless of locale.
+# 3. Strips optional 'c ' or 'c<num>' prefix (e.g. 'c 1+1' -> '1+1').
 
-    if [[ "$last_arg" =~ ^[cC][[:space:]]+(.*)$ ]]; then
-        args[$last_idx]="${BASH_REMATCH[1]}"
-    elif [[ "$last_arg" =~ ^[cC]([0-9\(].*)$ ]]; then
-        args[$last_idx]="${BASH_REMATCH[1]}"
+args=()
+has_nounits=0
+for arg in "$@"; do
+    if [ "$arg" = "-nounits" ]; then
+        has_nounits=1
     fi
+done
+
+if [ $has_nounits -eq 0 ]; then
+    args+=("-nounits" "-s" "decimal_comma 0")
+fi
+
+for arg in "$@"; do
+    args+=("$arg")
+done
+
+last_idx=$((${#args[@]} - 1))
+last_arg="${args[$last_idx]}"
+
+if [ -n "$last_arg" ]; then
+    # Strip leading 'c ' or 'c<math>'
+    if [[ "$last_arg" =~ ^[cC][[:space:]]+(.*)$ ]]; then
+        last_arg="${BASH_REMATCH[1]}"
+    elif [[ "$last_arg" =~ ^[cC]([0-9\(].*)$ ]]; then
+        last_arg="${BASH_REMATCH[1]}"
+    fi
+
+    args[$last_idx]="$last_arg"
 fi
 
 exec /usr/bin/qalc "${args[@]}"
