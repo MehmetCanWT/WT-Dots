@@ -369,6 +369,7 @@ border-radius=12
 progress-color=over {p['accent']}
 
 # Dimensions and spacing
+layer=overlay
 anchor=bottom-right
 width=380
 height=160
