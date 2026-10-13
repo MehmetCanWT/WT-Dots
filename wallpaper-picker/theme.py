@@ -363,11 +363,9 @@ mainbox {{
 }}
 
 message {{
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 4px 12px;
     background-color: transparent;
-    border: 1px;
-    border-color: @border-col;
+    border: 0px;
 }}
 
 textbox {{
@@ -392,12 +390,16 @@ button selected {{
 
 inputbar {{
     children: [ prompt, entry ];
-    spacing: 10px;
-    padding: 4px 6px;
+    spacing: 8px;
+    padding: 8px 12px;
+    border: 1px;
+    border-radius: 6px;
+    border-color: @border-col;
+    background-color: transparent;
 }}
 
 prompt {{
-    text-color: @accent;
+    text-color: #777777;
 }}
 
 entry {{
