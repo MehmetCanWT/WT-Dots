@@ -8,11 +8,12 @@ border-radius=12
 progress-color=over #f71219
 
 # Dimensions and spacing
+anchor=bottom-right
 width=380
 height=160
 padding=14,18
 margin=8
-outer-margin=48,18,0,0
+outer-margin=0,18,18,0
 
 # Timeout and behavior
 default-timeout=8500
