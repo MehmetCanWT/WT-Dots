@@ -337,11 +337,11 @@ def apply(p, restart_bar=True):
 font=0xProto Nerd Font:size=13
 terminal=kitty
 width=40
-lines=0
+lines=4
 hide-before-typing=no
 horizontal-pad=20
-vertical-pad=10
-inner-pad=0
+vertical-pad=12
+inner-pad=6
 line-height=24
 filter-desktop=yes
 
