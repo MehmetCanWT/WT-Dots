@@ -1,11 +1,14 @@
 configuration {
-    modi: "drun,run";
+    modi: "combi,drun,run,calc";
+    combi-modi: "drun,calc";
     show-icons: true;
     icon-theme: "breeze";
     font: "0xProto Nerd Font 12";
     drun-display-format: "{name}";
+    display-combi: "❯";
     display-drun: "❯";
     display-run: "λ";
+    display-calc: "🖩";
 }
 
 @theme "~/.config/rofi/theme.rasi"
