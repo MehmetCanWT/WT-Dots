@@ -14,34 +14,50 @@ def get_clients():
 
 def main():
     clients = get_clients()
-    visible_ids = [c["id"] for c in clients if not c.get("is_minimized", False)]
+    client_dict = {c["id"]: c for c in clients}
 
-    # If any windows are currently visible on screen -> hide all to reveal clean desktop
-    if visible_ids:
-        try:
-            with open(STATE_FILE, "w") as f:
-                json.dump(visible_ids, f)
-        except Exception:
-            pass
-        for cid in visible_ids:
-            subprocess.run(["mmsg", "dispatch", "minimized", f"client,{cid}"], check=False)
-    # If no windows are visible on screen -> restore previously hidden windows
-    elif os.path.exists(STATE_FILE):
+    # 1. If STATE_FILE exists: We previously showed desktop -> RESTORE
+    if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
                 saved_ids = json.load(f)
         except Exception:
             saved_ids = []
 
-        all_ids = {c["id"] for c in clients}
-        for cid in saved_ids:
-            if cid in all_ids:
-                subprocess.run(["mmsg", "dispatch", "restore_minimized", f"client,{cid}"], check=False)
-
         try:
             os.remove(STATE_FILE)
         except OSError:
             pass
+
+        restored_count = 0
+        for item in saved_ids:
+            cid = item["id"] if isinstance(item, dict) else item
+            if cid in client_dict and client_dict[cid].get("is_minimized", False):
+                subprocess.run(["mmsg", "dispatch", "restore_minimized", f"client,{cid}"], check=False)
+                restored_count += 1
+
+        # If any window was restored, return
+        if restored_count > 0:
+            return
+
+    # 2. If STATE_FILE did NOT exist (or was empty/invalid):
+    # Only minimize windows currently visible on the active workspace
+    visible_clients = [c for c in clients if c.get("is_visible", False) and not c.get("is_minimized", False)]
+    if not visible_clients:
+        visible_clients = [c for c in clients if not c.get("is_minimized", False)]
+
+    if not visible_clients:
+        return
+
+    saved_ids = [c["id"] for c in visible_clients]
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(saved_ids, f)
+    except Exception:
+        pass
+
+    for cid in saved_ids:
+        subprocess.run(["mmsg", "dispatch", "minimized", f"client,{cid}"], check=False)
 
 
 if __name__ == "__main__":
