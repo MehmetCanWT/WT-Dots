@@ -119,24 +119,10 @@ fi
 log "Deploying dotfiles to ~/.config..."
 mkdir -p "${HOME}/.config"
 
-deploy_dir() {
-    local src="$1"
-    local dest="${HOME}/.config/$2"
-    mkdir -p "${dest}"
-    cp -r "${src}/"* "${dest}/"
-}
-
-deploy_dir "${TARGET_DIR}/mango" "mango"
-deploy_dir "${TARGET_DIR}/mangobar" "mangobar"
-deploy_dir "${TARGET_DIR}/rofi" "rofi"
-deploy_dir "${TARGET_DIR}/mako" "mako"
-deploy_dir "${TARGET_DIR}/kitty" "kitty"
-deploy_dir "${TARGET_DIR}/wallpaper-picker" "wallpaper-picker"
-deploy_dir "${TARGET_DIR}/environment.d" "environment.d"
-deploy_dir "${TARGET_DIR}/gtk-3.0" "gtk-3.0"
-deploy_dir "${TARGET_DIR}/gtk-4.0" "gtk-4.0"
-deploy_dir "${TARGET_DIR}/xdg-desktop-portal" "xdg-desktop-portal"
-deploy_dir "${TARGET_DIR}/MangoHud" "MangoHud"
+for dir in mango mangobar rofi mako kitty wallpaper-picker environment.d gtk-3.0 gtk-4.0 xdg-desktop-portal MangoHud; do
+    mkdir -p "${HOME}/.config/${dir}"
+    cp -r "${TARGET_DIR}/${dir}/"* "${HOME}/.config/${dir}/"
+done
 
 chmod +x "${HOME}/.config/mango/scripts/"* "${HOME}/.config/wallpaper-picker/"*.py 2>/dev/null || true
 ok "Configurations deployed."

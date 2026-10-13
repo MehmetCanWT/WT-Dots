@@ -137,17 +137,19 @@ def main():
             elif "Mikrofon Sessize" in choice:
                 subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
 
-        elif view == "sinks":
+        elif view in ("sinks", "sources"):
+            is_sink = view == "sinks"
+            devices = sinks if is_sink else sources
+            icon = "󰓃" if is_sink else "󰍬"
+
             items = ["⬅ <b>Geri</b> (Ana Menü)"]
             active_idx = 1
-            for i, (dev_id, name, is_def) in enumerate(sinks):
+            for i, (dev_id, name, is_def) in enumerate(devices):
                 if is_def:
                     active_idx = i + 1
-                    items.append(
-                        f"<b><span foreground='#ffffff'>● 󰓃 {name}</span>  <span foreground='#567ae6'>[AKTİF]</span></b> [ID:{dev_id}]"
-                    )
+                    items.append(f"<b><span foreground='#ffffff'>● {icon} {name}</span>  <span foreground='#567ae6'>[AKTİF]</span></b> [ID:{dev_id}]")
                 else:
-                    items.append(f"<span foreground='#888899'>○ 󰓃 {name}</span> [ID:{dev_id}]")
+                    items.append(f"<span foreground='#888899'>○ {icon} {name}</span> [ID:{dev_id}]")
 
             choice, idx = show_rofi_menu(items, selected_row=last_idx if last_idx < len(items) else active_idx, width=540)
             if choice is None:
@@ -155,41 +157,13 @@ def main():
 
             if "Geri" in choice:
                 view = "main"
-                last_idx = 0
+                last_idx = 0 if is_sink else 1
                 continue
 
             last_idx = max(1, idx)
             m = re.search(r"\[ID:(\d+)\]", choice)
             if m:
-                target_id = m.group(1)
-                subprocess.run(["wpctl", "set-default", target_id])
-
-        elif view == "sources":
-            items = ["⬅ <b>Geri</b> (Ana Menü)"]
-            active_idx = 1
-            for i, (dev_id, name, is_def) in enumerate(sources):
-                if is_def:
-                    active_idx = i + 1
-                    items.append(
-                        f"<b><span foreground='#ffffff'>● 󰍬 {name}</span>  <span foreground='#567ae6'>[AKTİF]</span></b> [ID:{dev_id}]"
-                    )
-                else:
-                    items.append(f"<span foreground='#888899'>○ 󰍬 {name}</span> [ID:{dev_id}]")
-
-            choice, idx = show_rofi_menu(items, selected_row=last_idx if last_idx < len(items) else active_idx, width=540)
-            if choice is None:
-                break
-
-            if "Geri" in choice:
-                view = "main"
-                last_idx = 1
-                continue
-
-            last_idx = max(1, idx)
-            m = re.search(r"\[ID:(\d+)\]", choice)
-            if m:
-                target_id = m.group(1)
-                subprocess.run(["wpctl", "set-default", target_id])
+                subprocess.run(["wpctl", "set-default", m.group(1)])
 
 
 if __name__ == "__main__":
