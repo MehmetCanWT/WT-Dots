@@ -7,6 +7,7 @@ CATEGORIES = {
         ("Alt + Space", "Application Launcher (Rofi)"),
         ("Alt + Enter", "Open Terminal (Kitty)"),
         ("Super + E", "Open File Manager (Dolphin)"),
+        ("Super + C", "Calculator (Rofi-Calc)"),
         ("Super + V", "Clipboard History (Cliphist)"),
         ("Super + W", "Wallpaper & Theme Picker"),
         ("Super + K", "Keybindings Cheatsheet"),

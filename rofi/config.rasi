@@ -1,11 +1,9 @@
 configuration {
-    modi: "combi,drun,run,calc";
-    combi-modi: "drun,calc";
+    modi: "drun,run,calc";
     show-icons: true;
     icon-theme: "breeze";
     font: "0xProto Nerd Font 12";
     drun-display-format: "{name}";
-    display-combi: "❯";
     display-drun: "❯";
     display-run: "λ";
     display-calc: "🖩";
