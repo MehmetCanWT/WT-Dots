@@ -69,7 +69,6 @@ def hsl_to_hex(h, s, l):
     return rgb_to_hex(r, g, b)
 
 
-# ricemood color modifier helpers
 def lighten(hex_str, amount):
     h, s, l = hex_to_hsl(hex_str)
     return hsl_to_hex(h, s, l + (amount / 100.0))
@@ -88,6 +87,54 @@ def saturate(hex_str, amount):
 def desaturate(hex_str, amount):
     h, s, l = hex_to_hsl(hex_str)
     return hsl_to_hex(h, s - (amount / 100.0), l)
+
+
+def normalize_accent(hex_str):
+    """Normalize accent to ensure punchy saturation and optimal contrast on dark backgrounds."""
+    h, s, l = hex_to_hsl(hex_str)
+    if s < 0.15:
+        return hsl_to_hex(h, 0.20, 0.75)
+    s = min(0.95, max(0.65, s * 1.3))
+    l = min(0.62, max(0.52, l))
+    return hsl_to_hex(h, s, l)
+
+
+def luminance(r, g, b):
+    """WCAG 2.1 relative luminance."""
+    def ch(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b)
+
+
+def get_active_fg(accent_hex):
+    """Calculate legible foreground (white or near-black) for accent backgrounds."""
+    h = accent_hex.lstrip("#")
+    r, g, b = (int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+    lum = luminance(r, g, b)
+    return "#ffffff" if lum < 0.45 else "#101216"
+
+
+def closest_gnome_accent(h, s):
+    """Map HSL hue to nearest GNOME 47 accent color."""
+    if s < 0.18:
+        return "slate"
+    deg = (h * 360.0) % 360.0
+    if deg < 15 or deg >= 345:
+        return "red"
+    elif deg < 45:
+        return "orange"
+    elif deg < 75:
+        return "yellow"
+    elif deg < 160:
+        return "green"
+    elif deg < 195:
+        return "teal"
+    elif deg < 265:
+        return "blue"
+    elif deg < 315:
+        return "purple"
+    else:
+        return "pink"
 
 
 def extract_vibrant_swatches(image_path):
@@ -156,15 +203,20 @@ def palette(path):
 
     sw = extract_vibrant_swatches(path)
 
-    # ricemood style color scheme synthesis
+    # Base hue and saturation from image
     h, s, _ = hex_to_hsl(sw['DarkVibrant'] if 'DarkVibrant' in sw else sw['Vibrant'])
     # Deep solid dark theme background subtly tinted by the image
-    bg = hsl_to_hex(h, min(0.30, s * 0.4), 0.09)
-    bg2 = hsl_to_hex(h, min(0.35, s * 0.5), 0.15)
-    fg = lighten(sw.get('LightMuted', sw.get('LightVibrant', "#e0dcd4")), 10)
-    accent = sw['Vibrant']
-    accent2 = sw.get('LightVibrant', lighten(accent, 15))
-    muted = sw.get('Muted', desaturate(accent, 40))
+    bg = hsl_to_hex(h, min(0.20, s * 0.25), 0.09)
+    bg2 = hsl_to_hex(h, min(0.25, s * 0.30), 0.15)
+    # High-contrast readable foreground text (91% lightness)
+    fg = hsl_to_hex(h, min(0.12, s * 0.15), 0.91)
+
+    # Normalized vibrant accent with guaranteed contrast
+    accent = normalize_accent(sw['Vibrant'])
+    h_acc, s_acc, l_acc = hex_to_hsl(accent)
+    accent2 = hsl_to_hex(h_acc, max(0.50, s_acc * 0.9), min(0.78, l_acc + 0.15))
+    muted = hsl_to_hex(h, min(0.15, s * 0.20), 0.55)
+    active_fg = get_active_fg(accent)
     urgent = "#e05f52"
 
     p = {
@@ -174,6 +226,7 @@ def palette(path):
         "muted": muted,
         "accent": accent,
         "accent2": accent2,
+        "active_fg": active_fg,
         "urgent": urgent,
         "vibrant": sw['Vibrant'],
         "dark_vibrant": sw.get('DarkVibrant', bg),
@@ -198,8 +251,22 @@ def argb(c):
     return "0x" + c[1:] + "ff"
 
 
+def reload_mango_config():
+    """Dynamically resolve active MangoWM IPC socket and trigger reload."""
+    env = os.environ.copy()
+    try:
+        out = subprocess.check_output(["pgrep", "-x", "mango"], text=True).strip().split()
+        if out:
+            sock = f"/run/user/{os.getuid()}/mango-{out[-1]}.sock"
+            if os.path.exists(sock):
+                env["MANGO_INSTANCE_SIGNATURE"] = sock
+    except Exception:
+        pass
+    subprocess.run(["mmsg", "dispatch", "reload_config"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def apply(p, restart_bar=True):
-    # mangobar: 3-island floating setup with solid dark color
+    # mangobar: 3-island floating setup with solid dark color and readable active tag
     write("~/.config/mangobar/style.css", f"""* {{
     font-family: "0xProto Nerd Font";
     font-size: 13px;
@@ -234,8 +301,9 @@ def apply(p, restart_bar=True):
 }}
 
 #tags.active {{
-    color: {p['bg']};
+    color: {p['active_fg']};
     background-color: {p['accent']};
+    font-weight: bold;
     border-radius: 6px;
     margin: 3px 1px;
 }}
@@ -263,7 +331,7 @@ def apply(p, restart_bar=True):
     border-radius: 8px;
 }}
 
-#tray, #network, #volume, #backlight, #battery {{
+#tray, #network, #volume, #pulseaudio, #backlight, #battery {{
     background-color: {p['bg']};
     color: {p['fg']};
     padding: 0px 8px;
@@ -274,7 +342,7 @@ def apply(p, restart_bar=True):
     if restart_bar:
         sh("pkill -x mangobar; sleep 0.05; setsid mangobar -c ~/.config/mangobar/config.jsonc -s ~/.config/mangobar/style.css")
 
-    # mango renkleri
+    # mango window colors
     tc = Path("~/.config/mango/theme.conf").expanduser()
     vals = {"root_color": p["bg"], "border_color": p["bg2"], "focus_color": p["accent"],
             "urgent_color": p["urgent"], "maximized_screen_color": p["accent2"]}
@@ -283,9 +351,9 @@ def apply(p, restart_bar=True):
         k = ln.split("=")[0].strip()
         lines.append(f"{k}={argb(vals[k])}" if k in vals else ln)
     tc.write_text("\n".join(lines) + "\n")
-    sh("mmsg dispatch reload_config")
+    reload_mango_config()
 
-    # fuzzel, mako, kitty, gtk
+    # fuzzel launcher
     write("~/.config/fuzzel/fuzzel.ini", f"""[main]
 font=0xProto Nerd Font:size=13
 terminal=kitty
@@ -302,7 +370,7 @@ background={p['bg'][1:]}ee
 text={p['fg'][1:]}ff
 match={p['accent'][1:]}ff
 selection={p['accent'][1:]}ff
-selection-text={p['bg'][1:]}ff
+selection-text={p['active_fg'][1:]}ff
 border={p['accent'][1:]}ff
 
 [border]
@@ -311,6 +379,7 @@ radius=8
 """)
     sh("rm -f ~/.cache/fuzzel")
 
+    # mako notifications
     write("~/.config/mako/config", f"""font=0xProto Nerd Font 11
 background-color={p['bg']}
 text-color={p['fg']}
@@ -329,17 +398,17 @@ default-timeout=5000
     write("~/.config/kitty/current-theme.conf", f"""# Auto-generated by wallpaper theme
 foreground            {p['fg']}
 background            {p['bg']}
-selection_foreground  {p['bg']}
+selection_foreground  {p['active_fg']}
 selection_background  {p['accent']}
 cursor                {p['accent']}
-cursor_text_color     {p['bg']}
+cursor_text_color     {p['active_fg']}
 url_color             {p['accent2']}
 
 active_border_color   {p['accent']}
 inactive_border_color {p['bg2']}
 bell_border_color     {p['urgent']}
 
-active_tab_foreground   {p['bg']}
+active_tab_foreground   {p['active_fg']}
 active_tab_background   {p['accent']}
 inactive_tab_foreground {p['fg']}
 inactive_tab_background {p['bg2']}
@@ -372,7 +441,7 @@ color15 {lighten(p['fg'], 12)}
     # GTK 4 / Libadwaita colors for Nautilus & GTK apps
     write("~/.config/gtk-4.0/gtk.css", f"""@define-color accent_color {p['accent']};
 @define-color accent_bg_color {p['accent']};
-@define-color accent_fg_color {p['bg']};
+@define-color accent_fg_color {p['active_fg']};
 @define-color window_bg_color {p['bg']};
 @define-color window_fg_color {p['fg']};
 @define-color view_bg_color {p['bg2']};
@@ -383,14 +452,25 @@ color15 {lighten(p['fg'], 12)}
 @define-color card_fg_color {p['fg']};
 @define-color popover_bg_color {p['bg']};
 @define-color popover_fg_color {p['fg']};
+
+:selected,
+row:selected,
+.navigation-sidebar > row:selected {{
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}}
 """)
     write("~/.config/gtk-3.0/gtk.css", f"""@define-color accent_color {p['accent']};
 @define-color accent_bg_color {p['accent']};
-@define-color accent_fg_color {p['bg']};
+@define-color accent_fg_color {p['active_fg']};
 @define-color theme_selected_bg_color {p['accent']};
-@define-color theme_selected_fg_color {p['bg']};
+@define-color theme_selected_fg_color {p['active_fg']};
 """)
-    sh("pkill -USR1 -x kitty")
+
+    # GNOME / Libadwaita desktop interface integration
+    gnome_accent = closest_gnome_accent(h_acc, s_acc)
+    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "accent-color", gnome_accent], check=False)
+    subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"], check=False)
 
 
 def wallpaper(path):

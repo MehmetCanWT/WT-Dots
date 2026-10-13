@@ -1,13 +1,20 @@
-@define-color accent_color #8c1418;
-@define-color accent_bg_color #8c1418;
-@define-color accent_fg_color #1e1011;
-@define-color window_bg_color #1e1011;
-@define-color window_fg_color #b7c0ca;
-@define-color view_bg_color #34191a;
-@define-color view_fg_color #b7c0ca;
-@define-color headerbar_bg_color #1e1011;
-@define-color headerbar_fg_color #b7c0ca;
-@define-color card_bg_color #34191a;
-@define-color card_fg_color #b7c0ca;
-@define-color popover_bg_color #1e1011;
-@define-color popover_fg_color #b7c0ca;
+@define-color accent_color #f91018;
+@define-color accent_bg_color #f91018;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color #1c1213;
+@define-color window_fg_color #ebe5e6;
+@define-color view_bg_color #301d1d;
+@define-color view_fg_color #ebe5e6;
+@define-color headerbar_bg_color #1c1213;
+@define-color headerbar_fg_color #ebe5e6;
+@define-color card_bg_color #301d1d;
+@define-color card_fg_color #ebe5e6;
+@define-color popover_bg_color #1c1213;
+@define-color popover_fg_color #ebe5e6;
+
+:selected,
+row:selected,
+.navigation-sidebar > row:selected {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}

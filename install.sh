@@ -107,8 +107,7 @@ fi
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
         QT_QPA_PLATFORMTHEME=kde \
-        QT_STYLE_OVERRIDE=Breeze-Dark \
-        GTK_THEME=Breeze-Dark || true
+        QT_STYLE_OVERRIDE=Breeze-Dark || true
 fi
 
 # 7. Initial Theme Restore
