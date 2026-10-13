@@ -6,6 +6,7 @@ cat << 'EOF' | rofi -dmenu -p "Keybinds ❯ "
 Alt + Return           ❯ Open Terminal (kitty)
 Alt + Space            ❯ Application Launcher (rofi)
 Super + E              ❯ Open File Manager (dolphin)
+Super + V              ❯ Clipboard Manager (cliphist + rofi)
 Super + W              ❯ Wallpaper Picker & Theme Selector
 Super + K              ❯ Keybindings Cheatsheet
 Super + L              ❯ Toggle Game Mode (Disables compositor keys)

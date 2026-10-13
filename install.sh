@@ -30,6 +30,7 @@ cd "${TARGET_DIR}"
 log "Checking and installing system packages..."
 PKGS=(
     rofi
+    cliphist
     mako
     swaybg
     kitty

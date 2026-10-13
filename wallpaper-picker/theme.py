@@ -383,6 +383,7 @@ listview {{
     columns: 1;
     fixed-height: false;
     dynamic: true;
+    require-input: true;
     spacing: 4px;
 }}
 
