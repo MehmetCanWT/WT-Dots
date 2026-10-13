@@ -91,10 +91,10 @@ def desaturate(hex_str, amount):
 
 
 def extract_vibrant_swatches(image_path):
-    """node-vibrant / Android Palette implementation using PIL median-cut quantization."""
+    """Vibrant color extraction with 64-color quantization and saturated fallback."""
     im = Image.open(still(image_path)).convert("RGB")
-    im.thumbnail((128, 128))
-    q = im.quantize(16, method=Image.Quantize.MEDIANCUT)
+    im.thumbnail((256, 256))
+    q = im.quantize(64)
     pal = q.getpalette()
     colors = q.getcolors()
 
@@ -106,12 +106,12 @@ def extract_vibrant_swatches(image_path):
         swatches.append({'r': r, 'g': g, 'b': b, 'h': h, 's': s, 'l': l, 'pop': cnt})
 
     profiles = {
-        'Vibrant':      {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.50, 'min_l': 0.30, 'max_l': 0.70},
-        'LightVibrant': {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.74, 'min_l': 0.55, 'max_l': 1.00},
-        'DarkVibrant':  {'target_s': 1.0,  'min_s': 0.35, 'max_s': 1.0, 'target_l': 0.26, 'min_l': 0.00, 'max_l': 0.45},
-        'Muted':        {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.50, 'min_l': 0.30, 'max_l': 0.70},
-        'LightMuted':   {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.74, 'min_l': 0.55, 'max_l': 1.00},
-        'DarkMuted':    {'target_s': 0.30, 'min_s': 0.00, 'max_s': 0.40, 'target_l': 0.26, 'min_l': 0.00, 'max_l': 0.45},
+        'Vibrant':      {'target_s': 1.0,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.50, 'min_l': 0.20, 'max_l': 0.75},
+        'LightVibrant': {'target_s': 0.9,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.70, 'min_l': 0.50, 'max_l': 0.95},
+        'DarkVibrant':  {'target_s': 0.9,  'min_s': 0.25, 'max_s': 1.0, 'target_l': 0.25, 'min_l': 0.10, 'max_l': 0.45},
+        'Muted':        {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.50, 'min_l': 0.25, 'max_l': 0.75},
+        'LightMuted':   {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.70, 'min_l': 0.50, 'max_l': 0.95},
+        'DarkMuted':    {'target_s': 0.25, 'min_s': 0.00, 'max_s': 0.45, 'target_l': 0.25, 'min_l': 0.10, 'max_l': 0.45},
     }
 
     results = {}
@@ -121,15 +121,21 @@ def extract_vibrant_swatches(image_path):
             s, l, pop = sw['s'], sw['l'], sw['pop']
             if not (prof['min_s'] <= s <= prof['max_s'] and prof['min_l'] <= l <= prof['max_l']):
                 continue
-            score = (1.0 - abs(s - prof['target_s'])) * 0.35 + (1.0 - abs(l - prof['target_l'])) * 0.52 + (pop / max_pop) * 0.13
+            score = (1.0 - abs(s - prof['target_s'])) * 0.40 + (1.0 - abs(l - prof['target_l'])) * 0.45 + (pop / max_pop) * 0.15
             if score > best_score:
                 best_score = score
                 best = sw
         if best:
             results[name] = rgb_to_hex(best['r'], best['g'], best['b'])
 
-    # Fallback to dominant colors if any profile is missing
-    fallback = rgb_to_hex(swatches[0]['r'], swatches[0]['g'], swatches[0]['b']) if swatches else "#7798d9"
+    # Fallback to most saturated visible color
+    viable = [s for s in swatches if 0.15 <= s['l'] <= 0.85]
+    if viable:
+        best_sat = max(viable, key=lambda s: s['s'])
+        fallback = rgb_to_hex(best_sat['r'], best_sat['g'], best_sat['b'])
+    else:
+        fallback = rgb_to_hex(swatches[0]['r'], swatches[0]['g'], swatches[0]['b']) if swatches else "#7798d9"
+
     results.setdefault('Vibrant', fallback)
     results.setdefault('LightVibrant', lighten(results['Vibrant'], 25))
     results.setdefault('DarkVibrant', darken(results['Vibrant'], 25))
@@ -153,8 +159,8 @@ def palette(path):
     # ricemood style color scheme synthesis
     h, s, _ = hex_to_hsl(sw['DarkVibrant'] if 'DarkVibrant' in sw else sw['Vibrant'])
     # Deep solid dark theme background subtly tinted by the image
-    bg = hsl_to_hex(h, min(0.30, s * 0.4), 0.08)
-    bg2 = hsl_to_hex(h, min(0.35, s * 0.5), 0.14)
+    bg = hsl_to_hex(h, min(0.30, s * 0.4), 0.09)
+    bg2 = hsl_to_hex(h, min(0.35, s * 0.5), 0.15)
     fg = lighten(sw.get('LightMuted', sw.get('LightVibrant', "#e0dcd4")), 10)
     accent = sw['Vibrant']
     accent2 = sw.get('LightVibrant', lighten(accent, 15))
@@ -279,7 +285,7 @@ def apply(p, restart_bar=True):
     tc.write_text("\n".join(lines) + "\n")
     sh("mmsg dispatch reload_config")
 
-    # fuzzel, mako, kitty
+    # fuzzel, mako, kitty, gtk
     write("~/.config/fuzzel/fuzzel.ini", f"""[main]
 font=0xProto Nerd Font:size=13
 terminal=kitty
@@ -289,6 +295,7 @@ horizontal-pad=20
 vertical-pad=14
 inner-pad=8
 line-height=24
+filter-desktop=yes
 
 [colors]
 background={p['bg'][1:]}ee
@@ -302,6 +309,8 @@ border={p['accent'][1:]}ff
 width=2
 radius=8
 """)
+    sh("rm -f ~/.cache/fuzzel")
+
     write("~/.config/mako/config", f"""font=0xProto Nerd Font 11
 background-color={p['bg']}
 text-color={p['fg']}
@@ -311,22 +320,76 @@ default-timeout=5000
 """)
     sh("makoctl reload")
 
-    write("~/.config/kitty/current-theme.conf", f"""foreground {p['fg']}
-background {p['bg']}
-cursor {p['accent']}
-selection_background {p['accent']}
-selection_foreground {p['bg']}
-color0 {p['bg2']}
-color8 {p['muted']}
-color1 {p['urgent']}
-color4 {p['accent']}
-color6 {p['accent2']}
-color7 {p['fg']}
+    # Kitty 16-color harmonic terminal palette
+    h_acc, s_acc, _ = hex_to_hsl(p['accent'])
+    k_green = hsl_to_hex((h_acc + 0.33) % 1.0, max(0.40, s_acc * 0.8), 0.50)
+    k_yellow = hsl_to_hex((h_acc + 0.15) % 1.0, max(0.50, s_acc * 0.9), 0.55)
+    k_cyan = hsl_to_hex((h_acc + 0.50) % 1.0, max(0.40, s_acc * 0.8), 0.52)
+
+    write("~/.config/kitty/current-theme.conf", f"""# Auto-generated by wallpaper theme
+foreground            {p['fg']}
+background            {p['bg']}
+selection_foreground  {p['bg']}
+selection_background  {p['accent']}
+cursor                {p['accent']}
+cursor_text_color     {p['bg']}
+url_color             {p['accent2']}
+
+active_border_color   {p['accent']}
+inactive_border_color {p['bg2']}
+bell_border_color     {p['urgent']}
+
+active_tab_foreground   {p['bg']}
+active_tab_background   {p['accent']}
+inactive_tab_foreground {p['fg']}
+inactive_tab_background {p['bg2']}
+
+wayland_titlebar_color  {p['bg']}
+
+color0  {p['bg2']}
+color8  {p['muted']}
+color1  {p['urgent']}
+color9  {lighten(p['urgent'], 12)}
+color2  {k_green}
+color10 {lighten(k_green, 12)}
+color3  {k_yellow}
+color11 {lighten(k_yellow, 12)}
+color4  {p['accent']}
+color12 {lighten(p['accent'], 12)}
+color5  {p['accent2']}
+color13 {lighten(p['accent2'], 12)}
+color6  {k_cyan}
+color14 {lighten(k_cyan, 12)}
+color7  {p['fg']}
+color15 {lighten(p['fg'], 12)}
 """)
     kc = Path("~/.config/kitty/kitty.conf").expanduser()
     if not kc.exists() or "current-theme.conf" not in kc.read_text():
         with kc.open("a") as f:
             f.write("include current-theme.conf\n")
+    sh("pkill -USR1 -x kitty")
+
+    # GTK 4 / Libadwaita colors for Nautilus & GTK apps
+    write("~/.config/gtk-4.0/gtk.css", f"""@define-color accent_color {p['accent']};
+@define-color accent_bg_color {p['accent']};
+@define-color accent_fg_color {p['bg']};
+@define-color window_bg_color {p['bg']};
+@define-color window_fg_color {p['fg']};
+@define-color view_bg_color {p['bg2']};
+@define-color view_fg_color {p['fg']};
+@define-color headerbar_bg_color {p['bg']};
+@define-color headerbar_fg_color {p['fg']};
+@define-color card_bg_color {p['bg2']};
+@define-color card_fg_color {p['fg']};
+@define-color popover_bg_color {p['bg']};
+@define-color popover_fg_color {p['fg']};
+""")
+    write("~/.config/gtk-3.0/gtk.css", f"""@define-color accent_color {p['accent']};
+@define-color accent_bg_color {p['accent']};
+@define-color accent_fg_color {p['bg']};
+@define-color theme_selected_bg_color {p['accent']};
+@define-color theme_selected_fg_color {p['bg']};
+""")
     sh("pkill -USR1 -x kitty")
 
 

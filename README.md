@@ -30,7 +30,7 @@ Elegant, minimal, and responsive dotfiles for **MangoWM (0.18)** on Wayland, tai
 - **Keybindings Cheatsheet (`Super+K`)**: Instant searchable popup cheatsheet listing all active keybindings.
 - **Show / Hide Desktop (`Super+D`)**: Toggle all active windows to view wallpaper cleanly.
 - **Game Mode (`Super+L`)**: Toggles a dedicated keymode submap that disables compositor shortcuts for pure gaming inputs, while keeping `Alt+Tab` enabled.
-- **Dolphin Dark Theme**: Dark mode support via `~/.config/kdeglobals` and BreezeDark.
+- **File Manager & Theming**: Nautilus (GNOME Files) set as default file manager (`inode/directory`), styled dynamically via GTK4 / Libadwaita `@define-color` rules synced with wallpaper palettes.
 
 ---
 
