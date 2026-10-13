@@ -430,7 +430,7 @@ outer-margin=0,18,18,0
 # Timeout and behavior
 default-timeout=8500
 ignore-timeout=1
-markup=1
+markup=0
 actions=1
 
 # Icons
