@@ -5,8 +5,7 @@
     "exclusive": true,
     "passthrough": false,
     "modules-left": [
-        "custom/power",
-        "ext/workspaces"
+        "custom/power"
     ],
     "modules-center": [
         "clock#time"
@@ -22,11 +21,6 @@
         "format": "",
         "tooltip": false,
         "on-click": "bash ~/.config/waybar/scripts/powermenu.sh"
-    },
-    "ext/workspaces": {
-        "format": "{name}",
-        "on-click": "activate",
-        "sort-by-id": true
     },
     "network": {
         "format": "{icon} {ifname}",
