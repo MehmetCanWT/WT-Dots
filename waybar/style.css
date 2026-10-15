@@ -1,8 +1,8 @@
-/* Built-in Dark Theme (Default) */
+/* Built-in Dark Theme (Default Fallback) */
 @define-color base-bg #111116;
 @define-color base-border rgba(255, 255, 255, 0.08);
 @define-color text-color #e6e7ea;
-@define-color text-dim #7d859b;
+@define-color text-dim #9aa2b6;
 @define-color text-muted #545868;
 @define-color accent-color #567ae6;
 @define-color warning-color #e0a352;
@@ -15,7 +15,7 @@
     border: none;
     border-radius: 0;
     font-family: "0xProto Nerd Font", "0xProto Nerd Font Mono", monospace;
-    font-size: 13px;
+    font-size: 14px;
     min-height: 0;
 }
 
@@ -29,18 +29,18 @@ window#waybar {
 .modules-right {
     background-color: @base-bg;
     border: 1px solid @base-border;
-    border-radius: 10px;
-    padding: 2px 10px;
-    margin: 4px 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    border-radius: 12px;
+    padding: 4px 14px;
+    margin: 4px 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 .modules-left {
-    margin-left: 10px;
+    margin-left: 14px;
 }
 
 .modules-right {
-    margin-right: 10px;
+    margin-right: 14px;
 }
 
 /* Module Reset & Island Integration */
@@ -51,44 +51,88 @@ window#waybar {
 #custom-workspaces,
 #clock,
 #tray,
-#network,
+#custom-separator-right,
 #pulseaudio,
 #backlight,
-#battery,
-#custom-separator {
+#battery {
     background-color: transparent;
     color: @text-color;
-    padding: 0px 5px;
     margin: 0px;
     border-radius: 0px;
 }
 
-#custom-separator {
-    color: @text-muted;
-    padding: 0px 4px;
-    font-size: 12px;
+/* Left Island: System Info & Workspaces */
+#cpu {
+    padding-left: 6px;
+    padding-right: 8px;
 }
 
 #temperature {
-    padding-left: 1px;
-    color: @text-color;
+    padding-left: 2px;
+    padding-right: 18px;
+    color: @text-dim;
+}
+
+#custom-gpu {
+    padding-left: 0px;
+    padding-right: 18px;
+}
+
+#memory {
+    padding-left: 0px;
+    padding-right: 16px;
 }
 
 #custom-workspaces {
-    font-size: 13px;
-    padding: 0px 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 13.5px;
 }
 
-#network:hover,
-#pulseaudio:hover,
-#backlight:hover,
 #custom-workspaces:hover {
     color: @accent-color;
     transition: color 0.15s ease-in-out;
 }
 
+/* Center Island: Clock */
+#clock {
+    padding: 0px 4px;
+    font-weight: 500;
+}
+
+/* Right Island: Hardware & Controls */
+#tray {
+    padding: 0px 4px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+#custom-separator-right {
+    color: @text-muted;
+    padding: 0px 8px;
+    font-size: 13.5px;
+}
+
+#pulseaudio {
+    padding: 0px 10px;
+}
+
 #pulseaudio.muted {
     color: @text-dim;
+}
+
+#backlight {
+    padding: 0px 10px;
+}
+
+#battery {
+    padding: 0px 10px;
 }
 
 #battery.warning {
@@ -105,16 +149,4 @@ window#waybar {
 
 #temperature.critical {
     color: @critical-color;
-}
-
-#tray {
-    padding: 0px 4px;
-}
-
-#tray > .passive {
-    -gtk-icon-effect: dim;
-}
-
-#tray > .needs-attention {
-    -gtk-icon-effect: highlight;
 }

@@ -1,4 +1,0 @@
-# Game mode submap: Inhibits compositor hotkeys except mode exit and Alt+Tab
-[bind.game]
-"SUPER+l" = "setkeymode,default"
-"ALT+Tab" = "togglejump,"

@@ -18,5 +18,9 @@ Thumbs.db
 
 # Build and binary artifacts
 build/
+target/
 *.o
 *.so
+
+# KDE artifacts
+.directory
