@@ -180,11 +180,26 @@ RestartSec=2
 WantedBy=default.target
 EOF
 
+cat << 'EOF' > "${HOME}/.config/systemd/user/clipboard-sync-primary.service"
+[Unit]
+Description=Sync Regular Clipboard to Primary Selection
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wl-paste --watch /usr/bin/wl-copy --primary
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+EOF
+
 if command -v systemctl >/dev/null 2>&1; then
     systemctl --user daemon-reload 2>/dev/null || true
-    systemctl --user enable --now cliphist-text.service cliphist-image.service 2>/dev/null || true
+    systemctl --user enable --now cliphist-text.service cliphist-image.service clipboard-sync-primary.service 2>/dev/null || true
 fi
-ok "Clipboard watcher services configured and started."
+ok "Clipboard watcher and primary sync services configured and started."
 
 if command -v xdg-mime >/dev/null 2>&1; then
     xdg-mime default org.kde.dolphin.desktop inode/directory 2>/dev/null || true
