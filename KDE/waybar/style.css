@@ -10,19 +10,16 @@ window#waybar {
     background: transparent;
 }
 
-#custom-power {
-    padding: 0px 10px;
-    margin: 3px 1px 3px 8px;
+#cpu, #custom-gpu, #memory {
     background-color: #13151b;
-    color: #e05f52;
+    color: #e6e7ea;
+    padding: 0px 8px;
+    margin: 3px 1px;
     border-radius: 8px;
 }
 
-#workspaces {
-    padding: 0px 2px;
-    margin: 3px 1px;
-    background-color: #13151b;
-    border-radius: 8px;
+#cpu {
+    margin-left: 8px;
 }
 
 #workspaces button {

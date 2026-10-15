@@ -60,16 +60,17 @@ def get_audio_devices():
     return sinks, sources
 
 
-def show_rofi_menu(items, selected_row=0, width=540):
+def show_rofi_menu(items, selected_row=0, width=440):
     lines_count = max(1, min(12, len(items)))
     cmd = [
         "rofi",
         "-dmenu",
+        "-click-to-exit",
         "-markup-rows",
         "-selected-row",
         str(selected_row),
         "-theme-str",
-        f"mainbox {{ children: [ listview ]; }} listview {{ lines: {lines_count}; }} window {{ width: {width}px; }}",
+        f"window {{ location: north east; anchor: north east; y-offset: 36px; x-offset: -50px; width: {width}px; border-radius: 10px; }} mainbox {{ children: [ listview ]; }} listview {{ lines: {lines_count}; require-input: false; }}",
     ]
     proc = subprocess.run(cmd, input="\n".join(items), capture_output=True, text=True)
     if proc.returncode != 0:

@@ -5,7 +5,9 @@
     "exclusive": true,
     "passthrough": false,
     "modules-left": [
-        "custom/power"
+        "cpu",
+        "custom/gpu",
+        "memory"
     ],
     "modules-center": [
         "clock#time"
@@ -17,10 +19,24 @@
         "backlight",
         "battery"
     ],
-    "custom/power": {
-        "format": "",
-        "tooltip": false,
-        "on-click": "bash ~/.config/waybar/scripts/powermenu.sh"
+    "cpu": {
+        "interval": 2,
+        "format": " {usage}%",
+        "tooltip": true,
+        "on-click": "bash ~/.config/waybar/scripts/sys_menu.sh"
+    },
+    "custom/gpu": {
+        "interval": 2,
+        "exec": "bash ~/.config/waybar/scripts/gpu_info.sh",
+        "return-type": "json",
+        "format": "{}",
+        "on-click": "bash ~/.config/waybar/scripts/sys_menu.sh"
+    },
+    "memory": {
+        "interval": 2,
+        "format": "󰍛 {percentage}%",
+        "tooltip-format": "{used:0.1f}G / {total:0.1f}G ({percentage}%)",
+        "on-click": "bash ~/.config/waybar/scripts/sys_menu.sh"
     },
     "network": {
         "format": "{icon} {ifname}",
@@ -30,7 +46,8 @@
         "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
         "tooltip-format-wifi": "{essid} ({signalStrength}%)",
         "tooltip-format-ethernet": "{ifname} ",
-        "tooltip-format-disconnected": "Bağlantı Yok"
+        "tooltip-format-disconnected": "Bağlantı Yok",
+        "on-click": "bash ~/.config/waybar/scripts/wifi_menu.sh"
     },
     "pulseaudio": {
         "format": "{icon} {volume}%",
