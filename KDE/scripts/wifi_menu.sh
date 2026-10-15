@@ -1,7 +1,23 @@
 #!/usr/bin/env bash
-# Dropdown WiFi Menu for Waybar (aligned to top-right below Waybar)
+# Dropdown WiFi Menu for Waybar (Rofi with dark pill theme and toggle support)
 
-ROFI_THEME='window { location: north east; anchor: north east; y-offset: 36px; x-offset: -90px; width: 380px; border-radius: 10px; } mainbox { children: [ message, listview ]; } message { padding: 8px 12px; } listview { lines: 10; require-input: false; }'
+MENU_TAG="wifi"
+PID_TAG_FILE="/tmp/active_rofi_menu"
+
+# Singleton & Toggle handling
+if pgrep -x rofi >/dev/null; then
+    CURRENT_MENU=$(cat "$PID_TAG_FILE" 2>/dev/null)
+    pkill -x rofi
+    if [ "$CURRENT_MENU" = "$MENU_TAG" ]; then
+        rm -f "$PID_TAG_FILE"
+        exit 0
+    fi
+fi
+
+echo "$MENU_TAG" > "$PID_TAG_FILE"
+trap 'rm -f "$PID_TAG_FILE"' EXIT
+
+ROFI_THEME='* { font: "0xProto Nerd Font 11"; } window { location: north east; anchor: north east; y-offset: 38px; x-offset: -80px; width: 380px; border: 2px; border-color: #567ae6; border-radius: 12px; } mainbox { children: [ message, listview ]; } message { padding: 6px 10px; } listview { lines: 10; require-input: false; }'
 
 # Get WiFi Radio Status
 WIFI_STATUS=$(nmcli radio wifi)
@@ -65,13 +81,11 @@ case "$CHOSEN" in
         ;;
     *)
         # Extract SSID: remove status dot and signal icons
-        CLEAN_SSID=$(echo "$CHOSEN" | sed -E 's/^[●○][[:space:]]*//; s/^[󰤨󰤥󰤢󰤟][[:space:]]*//; s/[[:space:]]*//; s/[[:space:]]*\(%[0-9]+\)//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+        CLEAN_SSID=$(echo "$CHOSEN" | sed -E 's/^[●○][[:space:]]*//; s/^\[BAĞLI\][[:space:]]*//; s/^[󰤨󰤥󰤢󰤟][[:space:]]*//; s/[[:space:]]*//; s/[[:space:]]*\(%[0-9]+\)//; s/^[[:space:]]*//; s/[[:space:]]*$//')
         if [ -n "$CLEAN_SSID" ]; then
-            # Attempt to connect directly (works if password is saved)
             OUT=$(nmcli dev wifi connect "$CLEAN_SSID" 2>&1)
             if echo "$OUT" | grep -qi "Secrets were required"; then
-                # Prompt for password via rofi
-                PASS=$(rofi -dmenu -password -click-to-exit -p "Şifre" -theme-str 'window { location: north east; anchor: north east; y-offset: 36px; x-offset: -90px; width: 340px; border-radius: 10px; } mainbox { children: [ inputbar ]; }' -mesg "Ağ: $CLEAN_SSID")
+                PASS=$(rofi -dmenu -password -click-to-exit -p "Şifre" -theme-str '* { font: "0xProto Nerd Font 11"; } window { location: north east; anchor: north east; y-offset: 38px; x-offset: -80px; width: 340px; border: 2px; border-color: #567ae6; border-radius: 12px; } mainbox { children: [ inputbar ]; }' -mesg "Ağ: $CLEAN_SSID")
                 if [ -n "$PASS" ]; then
                     nmcli dev wifi connect "$CLEAN_SSID" password "$PASS"
                 fi

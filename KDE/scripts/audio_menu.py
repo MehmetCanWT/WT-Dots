@@ -1,7 +1,47 @@
 #!/usr/bin/env python3
+import atexit
+import os
 import re
 import subprocess
 import sys
+
+MENU_TAG = "audio"
+PID_TAG_FILE = "/tmp/active_rofi_menu"
+
+# Singleton & Toggle handling
+try:
+    pids = subprocess.check_output(["pgrep", "-x", "rofi"], text=True).strip().split()
+    if pids:
+        cur_menu = ""
+        if os.path.exists(PID_TAG_FILE):
+            with open(PID_TAG_FILE) as f:
+                cur_menu = f.read().strip()
+        subprocess.run(["pkill", "-x", "rofi"])
+        if cur_menu == MENU_TAG:
+            if os.path.exists(PID_TAG_FILE):
+                os.remove(PID_TAG_FILE)
+            sys.exit(0)
+except Exception:
+    pass
+
+try:
+    with open(PID_TAG_FILE, "w") as f:
+        f.write(MENU_TAG)
+except Exception:
+    pass
+
+
+def cleanup_tag():
+    if os.path.exists(PID_TAG_FILE):
+        try:
+            with open(PID_TAG_FILE) as f:
+                if f.read().strip() == MENU_TAG:
+                    os.remove(PID_TAG_FILE)
+        except Exception:
+            pass
+
+
+atexit.register(cleanup_tag)
 
 
 def get_volume_info(target):
@@ -18,7 +58,7 @@ def get_volume_info(target):
 def get_audio_devices():
     try:
         out = subprocess.run(["wpctl", "status"], capture_output=True, text=True, check=True).stdout
-    except Exception as e:
+    except Exception:
         return [], []
 
     sinks = []
@@ -70,7 +110,7 @@ def show_rofi_menu(items, selected_row=0, width=440):
         "-selected-row",
         str(selected_row),
         "-theme-str",
-        f"window {{ location: north east; anchor: north east; y-offset: 36px; x-offset: -50px; width: {width}px; border-radius: 10px; }} mainbox {{ children: [ listview ]; }} listview {{ lines: {lines_count}; require-input: false; }}",
+        f'* {{ font: "0xProto Nerd Font 11"; }} window {{ location: north east; anchor: north east; y-offset: 38px; x-offset: -50px; width: {width}px; border: 2px; border-color: #567ae6; border-radius: 12px; }} mainbox {{ children: [ listview ]; }} listview {{ lines: {lines_count}; require-input: false; }}',
     ]
     proc = subprocess.run(cmd, input="\n".join(items), capture_output=True, text=True)
     if proc.returncode != 0:

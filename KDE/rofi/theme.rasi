@@ -7,18 +7,19 @@
 
     background-color: transparent;
     text-color: @fg;
+    font: "0xProto Nerd Font 11";
     margin: 0;
     padding: 0;
     spacing: 0;
 }
 
 window {
-    width: 460px;
+    width: 440px;
     border: 2px;
-    border-radius: 8px;
+    border-radius: 12px;
     border-color: @border-col;
     background-color: @bg;
-    padding: 12px;
+    padding: 10px;
 }
 
 mainbox {
@@ -27,7 +28,7 @@ mainbox {
 }
 
 message {
-    padding: 4px 12px;
+    padding: 6px 10px;
     background-color: transparent;
     border: 0px;
 }
@@ -54,7 +55,7 @@ button selected {
 
 inputbar {
     children: [ entry ];
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px;
     border-radius: 6px;
     border-color: @border-col;
@@ -67,7 +68,7 @@ entry {
 }
 
 listview {
-    lines: 4;
+    lines: 6;
     columns: 1;
     fixed-height: false;
     dynamic: true;
@@ -76,9 +77,9 @@ listview {
 }
 
 element {
-    padding: 8px 10px;
+    padding: 6px 10px;
     border-radius: 6px;
-    spacing: 12px;
+    spacing: 10px;
 }
 
 element selected {
@@ -87,7 +88,7 @@ element selected {
 }
 
 element-icon {
-    size: 24px;
+    size: 20px;
 }
 
 element-text {

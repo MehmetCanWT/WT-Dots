@@ -1,7 +1,20 @@
+/* Built-in Dark Theme (Default) */
+@define-color base-bg #111116;
+@define-color base-border rgba(255, 255, 255, 0.08);
+@define-color text-color #e6e7ea;
+@define-color text-dim #7d859b;
+@define-color text-muted #545868;
+@define-color accent-color #567ae6;
+@define-color warning-color #e0a352;
+@define-color critical-color #e05f52;
+
+/* Optional theme overrides */
+@import url("theme.css");
+
 * {
     border: none;
     border-radius: 0;
-    font-family: "0xProto Nerd Font";
+    font-family: "0xProto Nerd Font", "0xProto Nerd Font Mono", monospace;
     font-size: 13px;
     min-height: 0;
 }
@@ -10,78 +23,98 @@ window#waybar {
     background: transparent;
 }
 
-#cpu, #custom-gpu, #memory {
-    background-color: #13151b;
-    color: #e6e7ea;
-    padding: 0px 8px;
-    margin: 3px 1px;
-    border-radius: 8px;
+/* 3-Island Layout Matching Reference Theme */
+.modules-left,
+.modules-center,
+.modules-right {
+    background-color: @base-bg;
+    border: 1px solid @base-border;
+    border-radius: 10px;
+    padding: 2px 10px;
+    margin: 4px 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-#cpu {
-    margin-left: 8px;
+.modules-left {
+    margin-left: 10px;
 }
 
-#workspaces button {
-    font-family: "0xProto Nerd Font";
-    font-size: 13px;
-    font-weight: normal;
-    color: #7d859b;
+.modules-right {
+    margin-right: 10px;
+}
+
+/* Module Reset & Island Integration */
+#cpu,
+#temperature,
+#custom-gpu,
+#memory,
+#custom-workspaces,
+#clock,
+#tray,
+#network,
+#pulseaudio,
+#backlight,
+#battery,
+#custom-separator {
     background-color: transparent;
-    padding: 0px 8px;
-    margin: 2px 1px;
-    border-radius: 6px;
-    border: none;
-    box-shadow: none;
-    text-shadow: none;
-    transition: all 0.2s ease-in-out;
+    color: @text-color;
+    padding: 0px 5px;
+    margin: 0px;
+    border-radius: 0px;
 }
 
-#workspaces button.active {
-    color: #ffffff;
-    background-color: #567ae6;
-    font-weight: bold;
-    border-radius: 6px;
+#custom-separator {
+    color: @text-muted;
+    padding: 0px 4px;
+    font-size: 12px;
 }
 
-#workspaces button.urgent {
-    color: #ffffff;
-    background-color: #e05f52;
+#temperature {
+    padding-left: 1px;
+    color: @text-color;
 }
 
-#workspaces button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: none;
+#custom-workspaces {
+    font-size: 13px;
+    padding: 0px 4px;
 }
 
-#clock {
-    background-color: #13151b;
-    color: #e6e7ea;
-    padding: 0px 14px;
-    margin: 3px 1px;
-    border-radius: 8px;
-}
-
-#tray, #network, #pulseaudio, #backlight, #battery {
-    background-color: #13151b;
-    color: #e6e7ea;
-    padding: 0px 8px;
-    margin: 3px 1px;
-    border-radius: 8px;
-}
-
-#battery {
-    margin-right: 8px;
+#network:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-workspaces:hover {
+    color: @accent-color;
+    transition: color 0.15s ease-in-out;
 }
 
 #pulseaudio.muted {
-    color: #7d859b;
+    color: @text-dim;
 }
 
 #battery.warning {
-    color: #e0a352;
+    color: @warning-color;
 }
 
 #battery.critical {
-    color: #e05f52;
+    color: @critical-color;
+}
+
+#temperature.warning {
+    color: @warning-color;
+}
+
+#temperature.critical {
+    color: @critical-color;
+}
+
+#tray {
+    padding: 0px 4px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
 }
