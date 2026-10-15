@@ -2,7 +2,7 @@
     "layer": "top",
     "position": "top",
     "height": 44,
-    "exclusive": false,
+    "exclusive": true,
     "passthrough": false,
     "modules-left": [
         "cpu",
