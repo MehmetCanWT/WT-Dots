@@ -1,8 +1,8 @@
 {
-    "layer": "top",
+    "layer": "background",
     "position": "top",
     "height": 44,
-    "exclusive": true,
+    "exclusive": false,
     "passthrough": false,
     "modules-left": [
         "cpu",
