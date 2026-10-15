@@ -1,2 +1,9 @@
-/* Custom color overrides (generated or user defined) */
-/* Leave empty to use Waybar's built-in dark theme */
+/* Dynamic Palette extracted by wt-rust */
+@define-color base-bg #141011;
+@define-color base-border rgba(226, 90, 120, 0.25);
+@define-color text-color #e6e7ea;
+@define-color text-dim #9aa2b6;
+@define-color text-muted #545868;
+@define-color accent-color #e25a78;
+@define-color warning-color #e0a352;
+@define-color critical-color #e05f52;

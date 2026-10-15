@@ -1,18 +1,17 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::env;
 use std::fs;
 use std::process::Command;
 
 #[derive(Serialize)]
-struct WaybarOutput {
-    text: String,
-    tooltip: Value,
+pub struct WaybarOutput {
+    pub text: String,
+    pub tooltip: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
-    class: Option<String>,
+    pub class: Option<String>,
 }
 
-fn get_gpu() {
+pub fn get_gpu() {
     let output = Command::new("nvidia-smi")
         .args([
             "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total",
@@ -112,7 +111,7 @@ fn get_desktops_state() -> (Vec<(String, String)>, usize, String) {
     (desktops, cur_idx, cur_name)
 }
 
-fn handle_workspaces(arg: Option<&str>) {
+pub fn handle_workspaces(arg: Option<&str>) {
     let (desktops, cur_idx, cur_name) = get_desktops_state();
     let count = desktops.len();
 
@@ -186,46 +185,48 @@ fn handle_workspaces(arg: Option<&str>) {
     }
 }
 
-fn handle_brightness(arg: Option<&str>) {
-    if arg == Some("toggle") {
-        let mut cur = 0u64;
-        let mut max = 0u64;
+pub fn handle_brightness(arg: Option<&str>) {
+    let mut cur = 0u64;
+    let mut max = 0u64;
 
-        if let Ok(entries) = fs::read_dir("/sys/class/backlight") {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if let (Ok(c_str), Ok(m_str)) = (
-                    fs::read_to_string(p.join("brightness")),
-                    fs::read_to_string(p.join("max_brightness")),
-                ) {
-                    cur = c_str.trim().parse().unwrap_or(0);
-                    max = m_str.trim().parse().unwrap_or(0);
-                    break;
-                }
-            }
-        }
-
-        if max > 0 {
-            if cur >= (max * 75 / 100) {
-                let _ = Command::new("brightnessctl").args(["set", "50%"]).status();
-            } else {
-                let _ = Command::new("brightnessctl").args(["set", "100%"]).status();
+    if let Ok(entries) = fs::read_dir("/sys/class/backlight") {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if let (Ok(c_str), Ok(m_str)) = (
+                fs::read_to_string(p.join("brightness")),
+                fs::read_to_string(p.join("max_brightness")),
+            ) {
+                cur = c_str.trim().parse().unwrap_or(0);
+                max = m_str.trim().parse().unwrap_or(0);
+                break;
             }
         }
     }
-}
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: wb-helper <gpu|workspaces [next|prev]|brightness [toggle]>");
+    if max == 0 {
         return;
     }
 
-    match args[1].as_str() {
-        "gpu" => get_gpu(),
-        "workspaces" => handle_workspaces(args.get(2).map(|s| s.as_str())),
-        "brightness" => handle_brightness(args.get(2).map(|s| s.as_str())),
-        _ => eprintln!("Unknown command: {}", args[1]),
+    let step = (max * 5 / 100).max(1);
+    let min_val = (max / 100).max(1); // Hard lower floor of 1%
+
+    match arg {
+        Some("toggle") => {
+            if cur >= (max * 75 / 100) {
+                let target = (max * 50 / 100).max(min_val);
+                let _ = Command::new("brightnessctl").args(["set", &target.to_string()]).status();
+            } else {
+                let _ = Command::new("brightnessctl").args(["set", &max.to_string()]).status();
+            }
+        }
+        Some("inc") => {
+            let target = (cur + step).min(max);
+            let _ = Command::new("brightnessctl").args(["set", &target.to_string()]).status();
+        }
+        Some("dec") => {
+            let target = cur.saturating_sub(step).max(min_val);
+            let _ = Command::new("brightnessctl").args(["set", &target.to_string()]).status();
+        }
+        _ => {}
     }
 }

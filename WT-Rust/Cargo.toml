@@ -1,0 +1,14 @@
+[package]
+name = "wt-rust"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "wt-rust"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "wayland", "default_fonts"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

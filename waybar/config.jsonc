@@ -1,5 +1,5 @@
 {
-    "layer": "bottom",
+    "layer": "top",
     "position": "top",
     "height": 44,
     "exclusive": false,
@@ -37,7 +37,7 @@
     },
     "custom/gpu": {
         "interval": 2,
-        "exec": "wb-helper gpu",
+        "exec": "wt-rust gpu",
         "return-type": "json",
         "format": "{}",
         "tooltip": false
@@ -51,11 +51,11 @@
         "interval": 1,
         "return-type": "json",
         "format": "{}",
-        "exec": "wb-helper workspaces",
+        "exec": "wt-rust workspaces",
         "signal": 8,
-        "on-scroll-up": "wb-helper workspaces prev",
-        "on-scroll-down": "wb-helper workspaces next",
-        "on-click": "wb-helper workspaces next"
+        "on-scroll-up": "wt-rust workspaces prev",
+        "on-scroll-down": "wt-rust workspaces next",
+        "on-click": "wt-rust workspaces next"
     },
     "clock#time": {
         "format": "{:%A    %H:%M}",
@@ -95,9 +95,9 @@
             "󰃟"
         ],
         "tooltip": false,
-        "on-click": "wb-helper brightness toggle",
-        "on-scroll-up": "brightnessctl set +5%",
-        "on-scroll-down": "brightnessctl set 5%-"
+        "on-click": "wt-rust brightness toggle",
+        "on-scroll-up": "wt-rust brightness inc",
+        "on-scroll-down": "wt-rust brightness dec"
     },
     "battery": {
         "states": {
