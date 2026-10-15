@@ -22,13 +22,14 @@ if [ -f /etc/os-release ]; then
 fi
 
 REPO_URL="https://github.com/MehmetCanWT/WT-Dots.git"
-TARGET_DIR="${HOME}/Code/WT-Dots"
+BASE_DIR="${HOME}/Code/WT-Dots"
+TARGET_DIR="${BASE_DIR}/MangoWM"
 
 # 1. Clone or locate repository
-if [ ! -d "${TARGET_DIR}/.git" ]; then
-    log "Cloning repository to ${TARGET_DIR}..."
+if [ ! -d "${BASE_DIR}/.git" ]; then
+    log "Cloning repository to ${BASE_DIR}..."
     mkdir -p "${HOME}/Code"
-    git clone "${REPO_URL}" "${TARGET_DIR}"
+    git clone "${REPO_URL}" "${BASE_DIR}"
 fi
 
 cd "${TARGET_DIR}"

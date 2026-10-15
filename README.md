@@ -4,22 +4,24 @@ Wayland desktop configuration for **MangoWM (0.18)** on **Fedora Linux** & **Arc
 
 ---
 
-## Quick Install
+## Structure
 
-### Fedora Linux
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main/install.sh)"
-```
+* **`MangoWM/`**: Complete tiling Wayland desktop configuration for **MangoWM (0.18)**.
+* **`KDE/`**: KDE Plasma customizations and configurations.
 
-### Arch Linux
+---
+
+## MangoWM Quick Install
+
+### Fedora Linux / Arch Linux
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main/MangoWM/install.sh)"
 ```
 
 ### Manual Installation
 ```bash
 git clone https://github.com/MehmetCanWT/WT-Dots.git ~/Code/WT-Dots
-cd ~/Code/WT-Dots
+cd ~/Code/WT-Dots/MangoWM
 chmod +x install.sh
 ./install.sh
 ```
