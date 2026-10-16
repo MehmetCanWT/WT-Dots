@@ -64,6 +64,42 @@ pub fn derive_action_info(key: &str, cmd: &str) -> (String, String) {
     }
 }
 
+pub fn key_to_qt_code(key: &str) -> Option<i32> {
+    let mut modifier = 0i32;
+    let mut base_code = None;
+
+    for part in key.split('+') {
+        let p = part.trim();
+        if p.eq_ignore_ascii_case("meta") || p.eq_ignore_ascii_case("super") {
+            modifier |= 0x1000_0000;
+        } else if p.eq_ignore_ascii_case("ctrl") || p.eq_ignore_ascii_case("control") {
+            modifier |= 0x0400_0000;
+        } else if p.eq_ignore_ascii_case("alt") {
+            modifier |= 0x0800_0000;
+        } else if p.eq_ignore_ascii_case("shift") {
+            modifier |= 0x0200_0000;
+        } else if p.eq_ignore_ascii_case("return") || p.eq_ignore_ascii_case("enter") {
+            base_code = Some(0x0100_0004);
+        } else if p.eq_ignore_ascii_case("space") {
+            base_code = Some(0x20);
+        } else if p.eq_ignore_ascii_case("tab") {
+            base_code = Some(0x0100_0001);
+        } else if p.eq_ignore_ascii_case("escape") || p.eq_ignore_ascii_case("esc") {
+            base_code = Some(0x0100_0000);
+        } else if p.len() == 1 {
+            let ch = p.chars().next()?.to_ascii_uppercase();
+            base_code = Some(ch as i32);
+        } else if (p.starts_with('F') || p.starts_with('f'))
+            && let Ok(num) = p[1..].parse::<i32>()
+            && (1..=35).contains(&num)
+        {
+            base_code = Some(0x0100_0030 + (num - 1));
+        }
+    }
+
+    base_code.map(|b| modifier | b)
+}
+
 pub fn sync_keybinds() {
     let home = match env::var_os("HOME") {
         Some(h) => PathBuf::from(h),
@@ -148,7 +184,6 @@ pub fn sync_keybinds() {
 
     let wtdots_desktop = apps_dir.join("wtdots.desktop");
     let _ = fs::write(&wtdots_desktop, desktop_content);
-
     // Sync to KDE global shortcuts under [services][wtdots.desktop]
     let _ = Command::new("kwriteconfig6")
         .args([
@@ -197,6 +232,22 @@ pub fn sync_keybinds() {
             .status();
     }
 
+    // Unbind KWin Overview shortcut if Meta+W is used by WTDots
+    let has_meta_w = actions.iter().any(|a| a.key == "Meta+W");
+    if has_meta_w {
+        let _ = Command::new("kwriteconfig6")
+            .args([
+                "--file",
+                "kglobalshortcutsrc",
+                "--group",
+                "kwin",
+                "--key",
+                "Overview",
+                "none,Meta+W,Genel Görünümü Aç/Kapat",
+            ])
+            .status();
+    }
+
     // Ensure KWin window rule for wt-clipboard opens under mouse cursor
     ensure_clipboard_kwin_rule();
 
@@ -229,7 +280,10 @@ pub fn sync_keybinds() {
         .arg(&apps_dir)
         .status();
 
-    // Register actions directly with KDE kglobalaccel DBus interface
+    // Rebuild KDE system configuration cache so KSycoca discovers wtdots.desktop immediately
+    let _ = Command::new("kbuildsycoca6").status();
+
+    // Register actions with KDE kglobalaccel DBus interface and bind active shortcut keys
     for act in &actions {
         let _ = Command::new("busctl")
             .args([
@@ -242,15 +296,36 @@ pub fn sync_keybinds() {
                 "as",
                 "4",
                 "wtdots.desktop",
-                "WTDots",
                 &act.id,
+                "WTDots",
                 &act.title,
             ])
             .status();
+
+        if let Some(qt_code) = key_to_qt_code(&act.key) {
+            let _ = Command::new("busctl")
+                .args([
+                    "--user",
+                    "call",
+                    "org.kde.kglobalaccel",
+                    "/kglobalaccel",
+                    "org.kde.KGlobalAccel",
+                    "setForeignShortcut",
+                    "asai",
+                    "4",
+                    "wtdots.desktop",
+                    &act.id,
+                    "WTDots",
+                    &act.title,
+                    "1",
+                    &qt_code.to_string(),
+                ])
+                .status();
+        }
     }
 
-    let _ = Command::new("systemctl")
-        .args(["--user", "restart", "plasma-kglobalaccel.service"])
+    let _ = Command::new("qdbus-qt6")
+        .args(["org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure"])
         .status();
 
     println!("WTDots keybindings synchronized with KDE Plasma 6.");
@@ -375,5 +450,14 @@ mod tests {
         let (id3, title3) = derive_action_info("Meta+V", "wt-rust clipboard");
         assert_eq!(id3, "Clipboard");
         assert_eq!(title3, "Clipboard History");
+    }
+
+    #[test]
+    fn test_key_to_qt_code() {
+        assert_eq!(key_to_qt_code("Meta+Return"), Some(285212676));
+        assert_eq!(key_to_qt_code("Meta+Enter"), Some(285212676));
+        assert_eq!(key_to_qt_code("Meta+W"), Some(268435543));
+        assert_eq!(key_to_qt_code("Meta+V"), Some(268435542));
+        assert_eq!(key_to_qt_code("Ctrl+Alt+T"), Some(201326676));
     }
 }

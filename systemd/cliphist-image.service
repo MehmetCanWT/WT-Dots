@@ -1,0 +1,12 @@
+[Unit]
+Description=Cliphist Image Clipboard Watcher
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wl-paste --type image --watch /usr/bin/cliphist store
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

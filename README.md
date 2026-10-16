@@ -77,9 +77,17 @@ WT-Dots/
 
 ## Installation & Setup
 
-### Automatic Setup (Recommended)
+### One-Line Install (Recommended)
 
-Run the included installer to build `wt-rust` in release mode, symlink configurations to `~/.config/`, configure Spectacle screenshots, enable the Waybar systemd service, and synchronize keybindings:
+Run the single-line bootstrap installer to clone the repository, build `wt-rust`, symlink configurations, configure systemd services, and register KDE Plasma 6 keybindings:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main/install.sh)
+```
+
+### Local Setup
+
+If you have already cloned the repository:
 
 ```bash
 ./install.sh

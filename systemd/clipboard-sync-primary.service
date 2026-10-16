@@ -1,0 +1,12 @@
+[Unit]
+Description=Sync Regular Clipboard to Primary Selection
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wl-paste --watch /usr/bin/wl-copy --primary
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
