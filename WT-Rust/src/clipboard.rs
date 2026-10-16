@@ -512,7 +512,7 @@ pub fn parse_cliphist_list(output: &str) -> Vec<ClipItem> {
                 details,
             });
         } else {
-            let preview = format_preview_max_lines(content, 42, 2);
+            let preview = format_preview_max_lines(content, 34, 2);
             let char_count = content.chars().count();
             let details = if char_count > 60 {
                 format!("{} karakter", char_count)
@@ -576,7 +576,7 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
                 }
                 let mut parts = trimmed.split('|');
                 let content = parts.next().unwrap_or("").replace(['\n', '\r', '\t'], " ");
-                let preview = format_preview_max_lines(&content, 42, 2);
+                let preview = format_preview_max_lines(&content, 34, 2);
                 let len_str = parts.next().unwrap_or("");
                 let details = if let Ok(l) = len_str.parse::<usize>() {
                     if l > 60 {
@@ -691,7 +691,7 @@ pub fn open_clipboard_menu() {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([440.0, 520.0])
+            .with_inner_size([350.0, 480.0])
             .with_decorations(false)
             .with_transparent(true)
             .with_always_on_top()
