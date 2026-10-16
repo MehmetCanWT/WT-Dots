@@ -186,6 +186,80 @@ pub fn handle_workspaces(arg: Option<&str>) {
 }
 
 pub fn handle_brightness(arg: Option<&str>) {
+    // 1. Try KDE PowerManagement DBus (syncs with KWin, kwinoutputconfig.json, PowerDevil, and sysfs)
+    let cur_out = Command::new("busctl")
+        .args([
+            "--user",
+            "--json=short",
+            "call",
+            "org.kde.Solid.PowerManagement",
+            "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+            "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+            "brightness",
+        ])
+        .output();
+
+    let max_out = Command::new("busctl")
+        .args([
+            "--user",
+            "--json=short",
+            "call",
+            "org.kde.Solid.PowerManagement",
+            "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+            "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+            "brightnessMax",
+        ])
+        .output();
+
+    let mut dbus_cur: Option<i64> = None;
+    let mut dbus_max: Option<i64> = None;
+
+    if let (Ok(c_res), Ok(m_res)) = (cur_out, max_out) {
+        if let (Ok(c_val), Ok(m_val)) = (
+            serde_json::from_slice::<Value>(&c_res.stdout),
+            serde_json::from_slice::<Value>(&m_res.stdout),
+        ) {
+            dbus_cur = c_val.get("data").and_then(|d| d.as_array()).and_then(|a| a.first()).and_then(|v| v.as_i64());
+            dbus_max = m_val.get("data").and_then(|d| d.as_array()).and_then(|a| a.first()).and_then(|v| v.as_i64());
+        }
+    }
+
+    if let (Some(cur_val), Some(max_val)) = (dbus_cur, dbus_max) {
+        if max_val > 0 {
+            let step = (max_val * 5 / 100).max(1);
+            let min_val = (max_val / 100).max(1); // 1% minimum hard floor
+
+            let target = match arg {
+                Some("toggle") => {
+                    if cur_val >= (max_val * 75 / 100) {
+                        (max_val * 50 / 100).max(min_val)
+                    } else {
+                        max_val
+                    }
+                }
+                Some("inc") => (cur_val + step).min(max_val),
+                Some("dec") => (cur_val - step).max(min_val),
+                _ => return,
+            };
+
+            let _ = Command::new("busctl")
+                .args([
+                    "--user",
+                    "call",
+                    "org.kde.Solid.PowerManagement",
+                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+                    "setBrightness",
+                    "i",
+                    &target.to_string(),
+                ])
+                .status();
+
+            return;
+        }
+    }
+
+    // 2. Fallback: Direct sysfs + brightnessctl
     let mut cur = 0u64;
     let mut max = 0u64;
 
