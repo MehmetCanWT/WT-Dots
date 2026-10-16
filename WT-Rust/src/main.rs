@@ -1,5 +1,6 @@
 mod agy;
 mod audio;
+mod clipboard;
 mod keybinds;
 mod power;
 mod sysinfo;
@@ -13,7 +14,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!(
-            "Usage: wt-rust <gpu|workspaces|brightness|wallpaper|theme|keybinds|volume|power|sysinfo|agy>"
+            "Usage: wt-rust <gpu|workspaces|brightness|wallpaper|theme|keybinds|volume|power|sysinfo|agy|clipboard>"
         );
         return;
     }
@@ -29,6 +30,7 @@ fn main() {
         "power" => power::handle_power(&args[2..]),
         "sysinfo" => sysinfo::handle_sysinfo(&args[2..]),
         "agy" => agy::handle_agy(&args[2..]),
+        "clipboard" => clipboard::handle_clipboard(&args[2..]),
         _ => eprintln!("Unknown command: {}", args[1]),
     }
 }

@@ -41,6 +41,8 @@ pub fn derive_action_info(key: &str, cmd: &str) -> (String, String) {
         ("Terminal".to_string(), "Terminal (Kitty)".to_string())
     } else if cmd_lower.contains("wallpaper select") {
         ("Wallpaper".to_string(), "Wallpaper Selector".to_string())
+    } else if cmd_lower.contains("clipboard") {
+        ("Clipboard".to_string(), "Clipboard History".to_string())
     } else {
         let base_id = cmd
             .split_whitespace()
@@ -179,6 +181,25 @@ pub fn sync_keybinds() {
             .status();
     }
 
+    // Unbind plasmashell default clipboard shortcut if Meta+V is used by WTDots
+    let has_meta_v = actions.iter().any(|a| a.key == "Meta+V");
+    if has_meta_v {
+        let _ = Command::new("kwriteconfig6")
+            .args([
+                "--file",
+                "kglobalshortcutsrc",
+                "--group",
+                "plasmashell",
+                "--key",
+                "show-on-mouse-pos",
+                "none,none,Fare Konumunda Pano Ögelerini Göster",
+            ])
+            .status();
+    }
+
+    // Ensure KWin window rule for wt-clipboard opens under mouse cursor
+    ensure_clipboard_kwin_rule();
+
     // Clean up any legacy separate desktop shortcut files
     if let Ok(entries) = fs::read_dir(&apps_dir) {
         for entry in entries.flatten() {
@@ -208,11 +229,87 @@ pub fn sync_keybinds() {
         .arg(&apps_dir)
         .status();
 
+    // Register actions directly with KDE kglobalaccel DBus interface
+    for act in &actions {
+        let _ = Command::new("busctl")
+            .args([
+                "--user",
+                "call",
+                "org.kde.kglobalaccel",
+                "/kglobalaccel",
+                "org.kde.KGlobalAccel",
+                "doRegister",
+                "as",
+                "4",
+                "wtdots.desktop",
+                "WTDots",
+                &act.id,
+                &act.title,
+            ])
+            .status();
+    }
+
     let _ = Command::new("systemctl")
         .args(["--user", "restart", "plasma-kglobalaccel.service"])
         .status();
 
     println!("WTDots keybindings synchronized with KDE Plasma 6.");
+}
+
+pub fn ensure_clipboard_kwin_rule() {
+    let _ = Command::new("kwriteconfig6")
+        .args([
+            "--file",
+            "kwinrulesrc",
+            "--group",
+            "1",
+            "--key",
+            "Description",
+            "WT-Clipboard",
+        ])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "placement", "UnderMouse"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "placementrule", "2"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "noborder", "true"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "noborderrule", "2"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "above", "true"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "aboverule", "2"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skiptaskbar", "true"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skiptaskbarrule", "2"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skipswitcher", "true"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skipswitcherrule", "2"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "wmclass", "wt-clipboard"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "wmclassmatch", "1"])
+        .status();
+    let _ = Command::new("kwriteconfig6")
+        .args(["--file", "kwinrulesrc", "--group", "General", "--key", "count", "1"])
+        .status();
+    let _ = Command::new("qdbus-qt6")
+        .args(["org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure"])
+        .status();
 }
 
 pub fn watch_keybinds() {
@@ -274,5 +371,9 @@ mod tests {
         let (id2, title2) = derive_action_info("Meta+W", "wt-rust wallpaper select");
         assert_eq!(id2, "Wallpaper");
         assert_eq!(title2, "Wallpaper Selector");
+
+        let (id3, title3) = derive_action_info("Meta+V", "wt-rust clipboard");
+        assert_eq!(id3, "Clipboard");
+        assert_eq!(title3, "Clipboard History");
     }
 }

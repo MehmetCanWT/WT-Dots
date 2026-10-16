@@ -111,6 +111,18 @@ pub fn default_palette() -> Palette {
     }
 }
 
+pub fn load_current_palette() -> Palette {
+    if let Ok(home) = env::var("HOME") {
+        let cache_path = PathBuf::from(home).join(".cache/wt-rust/palette.json");
+        if let Ok(content) = fs::read_to_string(&cache_path)
+            && let Ok(pal) = serde_json::from_str::<Palette>(&content)
+        {
+            return pal;
+        }
+    }
+    default_palette()
+}
+
 pub fn extract_palette_from_image(img: &image::DynamicImage) -> Palette {
     let small = img.thumbnail_exact(48, 48);
     let mut hue_bins: Vec<(f32, f32, f32, usize)> = vec![(0.0, 0.0, 0.0, 0); 16];
