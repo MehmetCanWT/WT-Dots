@@ -94,13 +94,14 @@ window#waybar {
 #clock {
     padding: 0px 6px;
     font-weight: 500;
+    color: @text-color;
 }
 
 #custom-agy {
     padding-left: 10px;
     padding-right: 6px;
     font-weight: 500;
-    color: @accent-color;
+    color: @text-color;
 }
 
 #custom-agy.offline {
@@ -113,6 +114,19 @@ window#waybar {
 
 #custom-agy.warning {
     color: @warning-color;
+}
+
+#custom-cpu:hover,
+#custom-gpu:hover,
+#custom-memory:hover,
+#clock:hover,
+#custom-agy:hover,
+#network:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-battery:hover {
+    color: @accent-color;
+    transition: color 0.15s ease-in-out;
 }
 
 /* Right Island: Hardware & Controls */

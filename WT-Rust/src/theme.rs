@@ -5,12 +5,33 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+fn default_accent_secondary() -> String {
+    "#8ab4f8".to_string()
+}
+fn default_text_color() -> String {
+    "#e6e7ea".to_string()
+}
+fn default_text_dim() -> String {
+    "#9aa2b6".to_string()
+}
+fn default_text_muted() -> String {
+    "#545868".to_string()
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Palette {
     pub bg: String,
     pub border: String,
     pub accent: String,
     pub accent_rgb: (u8, u8, u8),
+    #[serde(default = "default_accent_secondary")]
+    pub accent_secondary: String,
+    #[serde(default = "default_text_color")]
+    pub text_color: String,
+    #[serde(default = "default_text_dim")]
+    pub text_dim: String,
+    #[serde(default = "default_text_muted")]
+    pub text_muted: String,
 }
 
 pub fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
@@ -80,9 +101,13 @@ pub fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
 pub fn default_palette() -> Palette {
     Palette {
         bg: "#111116".to_string(),
-        border: "rgba(255, 255, 255, 0.08)".to_string(),
+        border: "rgba(86, 122, 230, 0.22)".to_string(),
         accent: "#567ae6".to_string(),
         accent_rgb: (86, 122, 230),
+        accent_secondary: "#8ab4f8".to_string(),
+        text_color: "#e6e7ea".to_string(),
+        text_dim: "#9aa2b6".to_string(),
+        text_muted: "#545868".to_string(),
     }
 }
 
@@ -120,23 +145,39 @@ pub fn extract_palette_from_image(img: &image::DynamicImage) -> Palette {
     }
 
     if let Some((h, _, _)) = best_bin {
-        let accent_rgb = hsl_to_rgb(h, 0.70, 0.62);
+        let accent_rgb = hsl_to_rgb(h, 0.72, 0.62);
         let accent_hex = format!(
             "#{:02x}{:02x}{:02x}",
             accent_rgb.0, accent_rgb.1, accent_rgb.2
         );
 
-        let bg_rgb = hsl_to_rgb(h, 0.12, 0.07);
-        let bg_hex = format!("#{:02x}{:02x}{:02x}", bg_rgb.0, bg_rgb.1, bg_rgb.2);
+        let accent_sec_rgb = hsl_to_rgb((h + 35.0).rem_euclid(360.0), 0.65, 0.66);
+        let accent_sec_hex = format!(
+            "#{:02x}{:02x}{:02x}",
+            accent_sec_rgb.0, accent_sec_rgb.1, accent_sec_rgb.2
+        );
+
+        let text_rgb = hsl_to_rgb(h, 0.18, 0.94);
+        let text_hex = format!("#{:02x}{:02x}{:02x}", text_rgb.0, text_rgb.1, text_rgb.2);
+
+        let dim_rgb = hsl_to_rgb(h, 0.22, 0.74);
+        let dim_hex = format!("#{:02x}{:02x}{:02x}", dim_rgb.0, dim_rgb.1, dim_rgb.2);
+
+        let muted_rgb = hsl_to_rgb(h, 0.18, 0.46);
+        let muted_hex = format!("#{:02x}{:02x}{:02x}", muted_rgb.0, muted_rgb.1, muted_rgb.2);
 
         Palette {
-            bg: bg_hex,
+            bg: "#111116".to_string(),
             border: format!(
-                "rgba({}, {}, {}, 0.25)",
+                "rgba({}, {}, {}, 0.22)",
                 accent_rgb.0, accent_rgb.1, accent_rgb.2
             ),
             accent: accent_hex,
             accent_rgb,
+            accent_secondary: accent_sec_hex,
+            text_color: text_hex,
+            text_dim: dim_hex,
+            text_muted: muted_hex,
         }
     } else {
         default_palette()
@@ -261,18 +302,32 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             "/* Dynamic Palette extracted by wt-rust */\n\
              @define-color base-bg {};\n\
              @define-color base-border {};\n\
-             @define-color text-color #e6e7ea;\n\
-             @define-color text-dim #9aa2b6;\n\
-             @define-color text-muted #545868;\n\
+             @define-color text-color {};\n\
+             @define-color text-dim {};\n\
+             @define-color text-muted {};\n\
              @define-color accent-color {};\n\
+             @define-color accent-secondary {};\n\
              @define-color warning-color #e0a352;\n\
              @define-color critical-color #e05f52;\n",
-            pal.bg, pal.border, pal.accent
+            pal.bg,
+            pal.border,
+            pal.text_color,
+            pal.text_dim,
+            pal.text_muted,
+            pal.accent,
+            pal.accent_secondary
         );
         let _ = fs::write(&waybar_theme, &theme_css);
         let repo_waybar = home_path.join("Code/WT-Dots/waybar/theme.css");
         if repo_waybar.exists() {
             let _ = fs::write(repo_waybar, &theme_css);
+        }
+
+        // Fast-access palette cache for waybar subcommands
+        let cache_dir = home_path.join(".cache/wt-rust");
+        let _ = fs::create_dir_all(&cache_dir);
+        if let Ok(json) = serde_json::to_string(pal) {
+            let _ = fs::write(cache_dir.join("palette.json"), json);
         }
 
         // 2. Rofi Theme (config + repository sync)
@@ -522,6 +577,29 @@ pub fn handle_theme(args: &[String]) {
             eprintln!("Usage: wt-rust theme [get <image_path> | apply [image_path]]");
         }
     }
+}
+
+pub fn get_current_palette() -> Palette {
+    if let Some(home) = env::var_os("HOME") {
+        let home_path = PathBuf::from(home);
+        let pal_file = home_path.join(".cache/wt-rust/palette.json");
+        if let Ok(content) = fs::read_to_string(&pal_file)
+            && let Ok(pal) = serde_json::from_str::<Palette>(&content)
+        {
+            return pal;
+        }
+
+        let cur_file = home_path.join(".cache/wt-rust/current");
+        if let Ok(s) = fs::read_to_string(&cur_file) {
+            let wp_path = PathBuf::from(s.trim());
+            if wp_path.exists() {
+                let pal = extract_palette(&wp_path);
+                let _ = fs::write(pal_file, serde_json::to_string(&pal).unwrap_or_default());
+                return pal;
+            }
+        }
+    }
+    default_palette()
 }
 
 #[cfg(test)]

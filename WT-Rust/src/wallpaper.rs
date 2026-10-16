@@ -1296,12 +1296,14 @@ mod tests {
             border: "rgba(226, 90, 120, 0.25)".to_string(),
             accent: "#e25a78".to_string(),
             accent_rgb: (226, 90, 120),
+            ..default_palette()
         };
         let pal_b = Palette {
             bg: "#101410".to_string(),
             border: "rgba(90, 226, 120, 0.25)".to_string(),
             accent: "#5ae278".to_string(),
             accent_rgb: (90, 226, 120),
+            ..default_palette()
         };
         let sw_b = default_swatches_for_palette(&pal_b);
 

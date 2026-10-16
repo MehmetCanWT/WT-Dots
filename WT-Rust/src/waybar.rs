@@ -25,10 +25,14 @@ pub fn get_gpu() {
         let text = String::from_utf8_lossy(&out.stdout);
         let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
         if parts.len() >= 2 {
+            let pal = crate::theme::get_current_palette();
             let util = parts[0];
             let temp = parts[1];
             let resp = WaybarOutput {
-                text: format!("󰢮 {}%  <span color='#9aa2b6'>{}°C</span>", util, temp),
+                text: format!(
+                    "<span color='{}'>󰢮</span> {}%  <span color='{}'>{}°C</span>",
+                    pal.accent, util, pal.text_dim, temp
+                ),
                 tooltip: Value::Bool(false),
                 class: None,
             };
@@ -148,16 +152,17 @@ pub fn handle_workspaces(arg: Option<&str>) {
                 return;
             }
 
+            let pal = crate::theme::get_current_palette();
             let mut dots = Vec::new();
             for i in 0..count {
                 if i == cur_idx {
-                    dots.push("<span color='#ffffff'>●</span>");
+                    dots.push(format!("<span color='{}'>●</span>", pal.accent));
                 } else {
-                    dots.push("<span color='#545868'>○</span>");
+                    dots.push(format!("<span color='{}'>○</span>", pal.text_muted));
                 }
             }
 
-            let text = format!("<span color='#545868'>|</span>   {}", dots.join("   "));
+            let text = format!("<span color='{}'>|</span>   {}", pal.text_muted, dots.join("   "));
             let resp = WaybarOutput {
                 text,
                 tooltip: Value::String(format!("{} ({}/{})", cur_name, cur_idx + 1, count)),

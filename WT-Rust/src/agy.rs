@@ -75,6 +75,12 @@ pub fn is_agy_running() -> Option<u32> {
     None
 }
 
+pub fn escape_pango(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
 pub fn clean_model_name(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -306,17 +312,19 @@ pub fn handle_agy(_args: &[String]) {
 
     let short_model = clean_model_name(&full_model);
 
+    let pal = crate::theme::get_current_palette();
+
     // Rule: If agy is not running, show ONLY "Gemini". If running, show active model name!
     let (text, class, menu_title) = match agy_pid {
         Some(pid) => (
-            format!("󰚩 {}", short_model),
+            format!("<span color='{}'>󰚩</span> {}", pal.accent, short_model),
             Some("normal".to_string()),
-            format!("<b>Gemini</b> (Aktif Model: {} · PID {})", short_model, pid),
+            format!("<b>{}</b> (Aktif · PID {})", escape_pango(&full_model), pid),
         ),
         None => (
-            "󰚩 Gemini".to_string(),
+            format!("<span color='{}'>󰚩</span> Gemini", pal.text_muted),
             Some("offline".to_string()),
-            "<b>Gemini</b> (İnaktif / Kapalı)".to_string(),
+            "<b>Gemini</b>".to_string(),
         ),
     };
 
@@ -407,8 +415,8 @@ pub fn handle_agy(_args: &[String]) {
 
     let tooltip = format!(
         "{}\n\
-         Model: {}\n\n\
-         <b>Model Kotaları & Yenilenme Süreleri:</b>\n\
+         ────────────────────────────\n\
+         <b>Model Kotaları ve Yenilenme Süreleri:</b>\n\
          1. <b>Gemini Modelleri</b> (En Yüksek Limit · Flash / Pro)\n\
             • 5 Saatlik : {}\n\
             • Haftalık  : {}\n\n\
@@ -419,20 +427,19 @@ pub fn handle_agy(_args: &[String]) {
             • 5 Saatlik : {}\n\
          ────────────────────────────\n\
          Oturum Kullanımı:\n\
-           • Girdi: {}  • Çıktı: {}\n\
-           • Önbellek: {}\n\
+            • Girdi: {}  • Çıktı: {}\n\
+            • Önbellek: {}\n\
          Konuşma: {}",
         menu_title,
-        full_model,
-        gemini_5h_str,
-        gemini_weekly_str,
-        argon_weekly_str,
-        claude_weekly_str,
-        claude_5h_str,
+        escape_pango(&gemini_5h_str),
+        escape_pango(&gemini_weekly_str),
+        escape_pango(&argon_weekly_str),
+        escape_pango(&claude_weekly_str),
+        escape_pango(&claude_5h_str),
         format_tokens(session.input),
         format_tokens(session.output),
         format_tokens(session.cache),
-        conv_id.as_deref().unwrap_or("yok")
+        escape_pango(conv_id.as_deref().unwrap_or("Yok"))
     );
 
     let output = WaybarAgyOutput {
