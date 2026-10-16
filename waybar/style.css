@@ -112,8 +112,27 @@ window#waybar {
 }
 
 /* Right Island: Hardware & Controls */
+#tray,
+#tray > * {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+}
+
 #tray {
     padding: 0px 4px;
+}
+
+#tray > .widget {
+    background-color: transparent;
+    padding: 0px 2px;
+    border: none;
+    box-shadow: none;
+}
+
+#tray > .widget > image {
+    background-color: transparent;
+    border-radius: 4px;
 }
 
 #tray > .passive {
