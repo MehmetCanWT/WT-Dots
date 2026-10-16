@@ -1,8 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::{self, File};
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize)]
@@ -11,6 +13,40 @@ pub struct WaybarAgyOutput {
     pub tooltip: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub class: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct QuotaResponse {
+    pub command: Option<QuotaCommand>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct QuotaCommand {
+    pub name: Option<String>,
+    pub data: Option<QuotaData>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct QuotaData {
+    pub groups: Option<Vec<QuotaGroup>>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct QuotaGroup {
+    pub name: String,
+    pub description: Option<String>,
+    pub buckets: Option<Vec<QuotaBucket>>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct QuotaBucket {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub window: Option<String>,
+    pub remaining_fraction: Option<f64>,
+    pub reset_time: Option<String>,
+    pub disabled: Option<bool>,
 }
 
 fn get_app_dir() -> PathBuf {
@@ -42,7 +78,7 @@ pub fn is_agy_running() -> Option<u32> {
 pub fn clean_model_name(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return "AGY".to_string();
+        return "Gemini".to_string();
     }
 
     let base = if let Some(idx) = trimmed.find('(') {
@@ -78,21 +114,7 @@ pub fn format_duration_tr(seconds: u64) -> String {
     }
 }
 
-pub fn extract_quota_reset(log_content: &str) -> Option<String> {
-    for line in log_content.lines().rev() {
-        if line.contains("RESOURCE_EXHAUSTED") || line.contains("Individual quota reached") {
-            if let Some(idx) = line.find("Resets in ") {
-                let rest = &line[idx + "Resets in ".len()..];
-                let reset_time = rest.split(['.', ' ']).next().unwrap_or("yakında");
-                return Some(reset_time.to_string());
-            }
-            return Some("dolu".to_string());
-        }
-    }
-    None
-}
-
-fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
+pub fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
     let s = s.trim();
     if s.len() < 19 {
         return None;
@@ -132,16 +154,17 @@ fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
     Some((days as u64) * 86400 + hour * 3600 + minute * 60 + second)
 }
 
-fn read_last_log_chunk(log_path: &Path, max_bytes: u64) -> Option<String> {
-    let mut file = File::open(log_path).ok()?;
-    let metadata = file.metadata().ok()?;
-    let len = metadata.len();
-    if len > max_bytes {
-        file.seek(SeekFrom::Start(len - max_bytes)).ok()?;
+fn format_reset_time_tr(iso_time: Option<&str>, now_secs: u64) -> String {
+    let Some(iso) = iso_time else {
+        return "Bilinmiyor".to_string();
+    };
+    if let Some(unix) = parse_iso8601_to_unix(iso) {
+        if unix > now_secs {
+            return format_duration_tr(unix - now_secs);
+        }
+        return "Yenileniyor".to_string();
     }
-    let mut buf = String::new();
-    file.read_to_string(&mut buf).ok()?;
-    Some(buf)
+    "Bilinmiyor".to_string()
 }
 
 fn get_active_conversation_id(app_dir: &Path) -> Option<String> {
@@ -175,17 +198,13 @@ struct SessionTokens {
     input: u64,
     output: u64,
     cache: u64,
-    earliest_5h: u64,
-    earliest_7d: u64,
 }
 
-fn read_session_tokens(app_dir: &Path, conv_id: &str, now_secs: u64) -> SessionTokens {
+fn read_session_tokens(app_dir: &Path, conv_id: &str) -> SessionTokens {
     let mut stats = SessionTokens {
         input: 0,
         output: 0,
         cache: 0,
-        earliest_5h: now_secs,
-        earliest_7d: now_secs,
     };
 
     let transcript_path = app_dir
@@ -194,9 +213,6 @@ fn read_session_tokens(app_dir: &Path, conv_id: &str, now_secs: u64) -> SessionT
         .join(".system_generated")
         .join("logs")
         .join("transcript.jsonl");
-
-    let five_h_ago = now_secs.saturating_sub(5 * 3600);
-    let seven_d_ago = now_secs.saturating_sub(7 * 86400);
 
     if let Ok(content) = fs::read_to_string(transcript_path) {
         for line in content.lines() {
@@ -214,21 +230,61 @@ fn read_session_tokens(app_dir: &Path, conv_id: &str, now_secs: u64) -> SessionT
                 if let Some(cache_tok) = v.get("cache_read_tokens").and_then(|t| t.as_u64()) {
                     stats.cache += cache_tok;
                 }
-                if let Some(cat) = v.get("created_at").and_then(|c| c.as_str())
-                    && let Some(ts) = parse_iso8601_to_unix(cat)
-                {
-                    if ts >= five_h_ago && ts < stats.earliest_5h {
-                        stats.earliest_5h = ts;
-                    }
-                    if ts >= seven_d_ago && ts < stats.earliest_7d {
-                        stats.earliest_7d = ts;
-                    }
-                }
             }
         }
     }
 
     stats
+}
+
+fn load_quota_summary() -> Option<QuotaResponse> {
+    let cache_path = Path::new("/tmp/wt-rust-agy-quota.json");
+    let lock_path = Path::new("/tmp/wt-rust-agy-quota.lock");
+
+    let needs_refresh = if let Ok(meta) = fs::metadata(cache_path) {
+        if let Ok(modified) = meta.modified() {
+            modified.elapsed().unwrap_or(Duration::from_secs(999)) > Duration::from_secs(60)
+        } else {
+            true
+        }
+    } else {
+        true
+    };
+
+    // If cache is stale or missing, trigger background refresh
+    if needs_refresh {
+        let lock_stale = if let Ok(lmeta) = fs::metadata(lock_path) {
+            lmeta.modified().ok().and_then(|m| m.elapsed().ok()).unwrap_or(Duration::from_secs(999)) > Duration::from_secs(30)
+        } else {
+            true
+        };
+
+        if lock_stale {
+            let _ = fs::write(lock_path, "1");
+            thread::spawn(|| {
+                if let Ok(output) = Command::new("agy")
+                    .args(["-p", "/quota", "--output-format", "json"])
+                    .output()
+                    && output.status.success()
+                    && !output.stdout.is_empty()
+                {
+                    let _ = fs::write("/tmp/wt-rust-agy-quota.json", &output.stdout);
+                }
+                let _ = fs::remove_file("/tmp/wt-rust-agy-quota.lock");
+            });
+        }
+    }
+
+    if let Ok(mut f) = File::open(cache_path) {
+        let mut buf = String::new();
+        if f.read_to_string(&mut buf).is_ok()
+            && let Ok(parsed) = serde_json::from_str::<QuotaResponse>(&buf)
+        {
+            return Some(parsed);
+        }
+    }
+
+    None
 }
 
 pub fn handle_agy(_args: &[String]) {
@@ -239,21 +295,8 @@ pub fn handle_agy(_args: &[String]) {
         .unwrap_or(Duration::ZERO)
         .as_secs();
 
-    // If agy is not running, output clean offline indicator
-    let Some(pid) = agy_pid else {
-        let output = WaybarAgyOutput {
-            text: "󰚩 Kapalı".to_string(),
-            tooltip: "<b>Antigravity CLI</b>\nDurum: Çalışmıyor (İnaktif)".to_string(),
-            class: Some("offline".to_string()),
-        };
-        if let Ok(json) = serde_json::to_string(&output) {
-            println!("{}", json);
-        }
-        return;
-    };
-
     let settings_path = app_dir.join("settings.json");
-    let mut full_model = "Antigravity".to_string();
+    let mut full_model = "Gemini".to_string();
     if let Ok(content) = fs::read_to_string(&settings_path)
         && let Ok(v) = serde_json::from_str::<serde_json::Value>(&content)
         && let Some(m) = v.get("model").and_then(|s| s.as_str())
@@ -263,95 +306,129 @@ pub fn handle_agy(_args: &[String]) {
 
     let short_model = clean_model_name(&full_model);
 
-    // Check quota / status from cli.log
-    let cli_log_path = app_dir.join("cli.log");
-    let quota_reset = if cli_log_path.exists() {
-        read_last_log_chunk(&cli_log_path, 8192).and_then(|chunk| extract_quota_reset(&chunk))
-    } else {
-        None
+    // Rule: If agy is not running, show ONLY "Gemini". If running, show active model name!
+    let (text, class, menu_title) = match agy_pid {
+        Some(pid) => (
+            format!("󰚩 {}", short_model),
+            Some("normal".to_string()),
+            format!("<b>Gemini</b> (Aktif Model: {} · PID {})", short_model, pid),
+        ),
+        None => (
+            "󰚩 Gemini".to_string(),
+            Some("offline".to_string()),
+            "<b>Gemini</b> (İnaktif / Kapalı)".to_string(),
+        ),
     };
+
+    let quota_data = load_quota_summary();
+    let groups = quota_data
+        .and_then(|r| r.command)
+        .and_then(|c| c.data)
+        .and_then(|d| d.groups)
+        .unwrap_or_default();
+
+    // Group 1: Gemini Models (Highest Limit - Flash/Pro)
+    let gemini_grp = groups.iter().find(|g| g.name.contains("Gemini Models"));
+    let mut gemini_5h_str = "Kullanılabilir".to_string();
+    let mut gemini_weekly_str = "Kullanılabilir".to_string();
+
+    if let Some(grp) = gemini_grp && let Some(ref buckets) = grp.buckets {
+        for b in buckets {
+            let win = b.window.as_deref().unwrap_or("");
+            let frac = b.remaining_fraction.unwrap_or(1.0);
+            let pct = (frac * 100.0).round() as u64;
+            let reset_dur = format_reset_time_tr(b.reset_time.as_deref(), now_secs);
+
+            if win == "5h" {
+                gemini_5h_str = format!("%{} kalan (Yenilenme: {})", pct, reset_dur);
+            } else if win == "weekly" {
+                gemini_weekly_str = format!("%{} kalan (Yenilenme: {})", pct, reset_dur);
+            }
+        }
+    }
+
+    // Group 2: Gemini 4 Argon (Medium Limit)
+    let argon_grp = groups.iter().find(|g| g.name.contains("Argon"));
+    let mut argon_weekly_str = "Kullanılabilir".to_string();
+
+    if let Some(grp) = argon_grp && let Some(ref buckets) = grp.buckets {
+        for b in buckets {
+            let frac = b.remaining_fraction.unwrap_or(1.0);
+            let pct = (frac * 100.0).round() as u64;
+            let reset_dur = format_reset_time_tr(b.reset_time.as_deref(), now_secs);
+
+            if pct == 0 {
+                argon_weekly_str = format!("%0 · Limit Doldu (Yenilenme: {})", reset_dur);
+            } else {
+                argon_weekly_str = format!("%{} kalan (Yenilenme: {})", pct, reset_dur);
+            }
+        }
+    }
+
+    // Group 3: Claude (Tüm Modeller Ortak Limit)
+    let claude_grp = groups.iter().find(|g| g.name.contains("Claude") || g.name.contains("3p"));
+    let mut claude_5h_str = "Kullanılabilir".to_string();
+    let mut claude_weekly_str = "Kullanılabilir".to_string();
+
+    if let Some(grp) = claude_grp && let Some(ref buckets) = grp.buckets {
+        for b in buckets {
+            let win = b.window.as_deref().unwrap_or("");
+            let frac = b.remaining_fraction.unwrap_or(0.0);
+            let pct = (frac * 100.0).round() as u64;
+            let reset_dur = format_reset_time_tr(b.reset_time.as_deref(), now_secs);
+            let is_disabled = b.disabled.unwrap_or(false);
+
+            if win == "5h" {
+                if is_disabled {
+                    claude_5h_str = "Devre Dışı (Haftalık limit aşıldı)".to_string();
+                } else {
+                    claude_5h_str = format!("%{} kalan (Yenilenme: {})", pct, reset_dur);
+                }
+            } else if win == "weekly" {
+                if pct == 0 {
+                    claude_weekly_str = format!("%0 · Limit Doldu (Yenilenme: {})", reset_dur);
+                } else {
+                    claude_weekly_str = format!("%{} kalan (Yenilenme: {})", pct, reset_dur);
+                }
+            }
+        }
+    }
 
     let conv_id = get_active_conversation_id(&app_dir);
     let session = if let Some(ref cid) = conv_id {
-        read_session_tokens(&app_dir, cid, now_secs)
+        read_session_tokens(&app_dir, cid)
     } else {
         SessionTokens {
             input: 0,
             output: 0,
             cache: 0,
-            earliest_5h: now_secs,
-            earliest_7d: now_secs,
         }
     };
 
-    let reset_5h_secs = (session.earliest_5h + 5 * 3600).saturating_sub(now_secs);
-    let reset_5h_str = format_duration_tr(reset_5h_secs.max(60));
-
-    let reset_7d_str = if let Some(ref r) = quota_reset {
-        r.clone()
-    } else {
-        let secs = (session.earliest_7d + 7 * 86400).saturating_sub(now_secs);
-        format_duration_tr(secs.max(3600))
-    };
-
-    // Main bar display: ONLY the clean model name (no percentages/limits on the main bar)
-    let (text, class) = match quota_reset {
-        Some(ref reset_time) => (
-            format!("󰚩 {} 󰅚 Limit: {}", short_model, reset_time),
-            Some("critical".to_string()),
-        ),
-        None => (
-            format!("󰚩 {}", short_model),
-            Some("normal".to_string()),
-        ),
-    };
-
-    // Tooltip: Hierarchical model quota list with Gemini highest limit on top, Claude pooled
-    let flash_status = match quota_reset {
-        Some(ref r) if full_model.contains("Flash") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
-        _ => "Aktif · Kullanılabilir".to_string(),
-    };
-    let argon_status = match quota_reset {
-        Some(ref r) if full_model.contains("Argon") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
-        _ => "Hazır · Kullanılabilir".to_string(),
-    };
-    let claude_status = match quota_reset {
-        Some(ref r) if full_model.contains("Claude") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
-        _ => "Hazır · Ortak Havuz".to_string(),
-    };
-
     let tooltip = format!(
-        "<b>Antigravity CLI</b> (Aktif · PID {})\n\
-         Aktif Model: {}\n\n\
+        "{}\n\
+         Model: {}\n\n\
          <b>Model Kotaları & Yenilenme Süreleri:</b>\n\
-         1. <b>Gemini 3.8 Flash</b> (En Yüksek Limit)\n\
-            • Durum: {}\n\
-            • 5 Saatlik Yenilenme: {}\n\
-            • Haftalık Yenilenme  : {}\n\n\
+         1. <b>Gemini Modelleri</b> (En Yüksek Limit · Flash / Pro)\n\
+            • 5 Saatlik : {}\n\
+            • Haftalık  : {}\n\n\
          2. <b>Gemini 4 Argon</b> (Orta Limit)\n\
-            • Durum: {}\n\
-            • 5 Saatlik Yenilenme: {}\n\
-            • Haftalık Yenilenme  : {}\n\n\
+            • Haftalık  : {}\n\n\
          3. <b>Claude</b> (Tüm Modeller Ortak Limit)\n\
-            • Durum: {}\n\
-            • 5 Saatlik Yenilenme: {}\n\
-            • Haftalık Yenilenme  : {}\n\
+            • Haftalık  : {}\n\
+            • 5 Saatlik : {}\n\
          ────────────────────────────\n\
          Oturum Kullanımı:\n\
            • Girdi: {}  • Çıktı: {}\n\
            • Önbellek: {}\n\
          Konuşma: {}",
-        pid,
+        menu_title,
         full_model,
-        flash_status,
-        reset_5h_str,
-        reset_7d_str,
-        argon_status,
-        reset_5h_str,
-        reset_7d_str,
-        claude_status,
-        reset_5h_str,
-        reset_7d_str,
+        gemini_5h_str,
+        gemini_weekly_str,
+        argon_weekly_str,
+        claude_weekly_str,
+        claude_5h_str,
         format_tokens(session.input),
         format_tokens(session.output),
         format_tokens(session.cache),
@@ -378,7 +455,7 @@ mod tests {
         assert_eq!(clean_model_name("Gemini 3.8 Flash (Medium)"), "3.8 Flash");
         assert_eq!(clean_model_name("Gemini 4 Argon (High)"), "4 Argon");
         assert_eq!(clean_model_name("Claude Sonnet 3.7 (Medium)"), "Claude Sonnet 3.7");
-        assert_eq!(clean_model_name(""), "AGY");
+        assert_eq!(clean_model_name(""), "Gemini");
     }
 
     #[test]
@@ -401,14 +478,5 @@ mod tests {
         let ts = parse_iso8601_to_unix("2026-10-16T12:00:00Z");
         assert!(ts.is_some());
         assert!(ts.unwrap() > 1700000000);
-    }
-
-    #[test]
-    fn test_extract_quota_reset() {
-        let sample = "agent executor error: generating and executing: RESOURCE_EXHAUSTED (code 429): Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 166h45m57s.\nSome other info";
-        assert_eq!(extract_quota_reset(sample), Some("166h45m57s".to_string()));
-
-        let normal = "info: all good";
-        assert_eq!(extract_quota_reset(normal), None);
     }
 }
