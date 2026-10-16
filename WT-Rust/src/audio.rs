@@ -18,11 +18,12 @@ fn get_current_volume_and_mute() -> (f32, bool) {
         let text = String::from_utf8_lossy(&out.stdout);
         // Format: "Volume: 0.55" or "Volume: 1.00 [MUTED]"
         let is_muted = text.contains("[MUTED]");
-        let parts: Vec<&str> = text.split_whitespace().collect();
-        if parts.len() >= 2 {
-            if let Ok(vol) = parts[1].parse::<f32>() {
-                return (vol, is_muted);
-            }
+        if let Some(vol) = text
+            .split_whitespace()
+            .nth(1)
+            .and_then(|s| s.parse::<f32>().ok())
+        {
+            return (vol, is_muted);
         }
     }
     (0.0, false)
@@ -77,7 +78,11 @@ pub fn handle_volume(args: &[String]) {
             let resp = AudioOutput {
                 text,
                 tooltip: format!("Ses: %{} {}", pct, if is_muted { "(Sessiz)" } else { "" }),
-                class: if is_muted { "muted".to_string() } else { format!("vol-{}", pct) },
+                class: if is_muted {
+                    "muted".to_string()
+                } else {
+                    format!("vol-{}", pct)
+                },
                 percentage: pct,
             };
 

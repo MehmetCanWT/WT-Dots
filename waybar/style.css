@@ -44,10 +44,9 @@ window#waybar {
 }
 
 /* Module Reset & Island Integration */
-#cpu,
-#temperature,
+#custom-cpu,
 #custom-gpu,
-#memory,
+#custom-memory,
 #custom-workspaces,
 #clock,
 #tray,
@@ -63,15 +62,9 @@ window#waybar {
 }
 
 /* Left Island: System Info & Workspaces */
-#cpu {
+#custom-cpu {
     padding-left: 6px;
-    padding-right: 8px;
-}
-
-#temperature {
-    padding-left: 2px;
     padding-right: 18px;
-    color: @text-dim;
 }
 
 #custom-gpu {
@@ -79,7 +72,7 @@ window#waybar {
     padding-right: 18px;
 }
 
-#memory {
+#custom-memory {
     padding-left: 0px;
     padding-right: 16px;
 }
@@ -161,10 +154,12 @@ window#waybar {
     color: @critical-color;
 }
 
-#temperature.warning {
+#custom-cpu.warning,
+#custom-memory.warning {
     color: @warning-color;
 }
 
-#temperature.critical {
+#custom-cpu.critical,
+#custom-memory.critical {
     color: @critical-color;
 }

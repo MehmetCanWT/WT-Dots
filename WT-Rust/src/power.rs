@@ -11,9 +11,16 @@ struct PowerOutput {
     percentage: u32,
 }
 
+fn extract_quoted(stdout: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(stdout);
+    let start = text.find('"')?;
+    let end = text.rfind('"')?;
+    (end > start).then(|| text[start + 1..end].to_string())
+}
+
 fn get_active_profile() -> String {
     // 1. Try KDE Solid PowerManagement on user session bus
-    let output = Command::new("busctl")
+    if let Ok(out) = Command::new("busctl")
         .args([
             "--user",
             "call",
@@ -22,23 +29,15 @@ fn get_active_profile() -> String {
             "org.kde.Solid.PowerManagement.Actions.PowerProfile",
             "currentProfile",
         ])
-        .output();
-
-    if let Ok(out) = output {
-        if out.status.success() {
-            let text = String::from_utf8_lossy(&out.stdout);
-            if let Some(start) = text.find('"') {
-                if let Some(end) = text.rfind('"') {
-                    if end > start {
-                        return text[start + 1..end].to_string();
-                    }
-                }
-            }
-        }
+        .output()
+        && out.status.success()
+        && let Some(prof) = extract_quoted(&out.stdout)
+    {
+        return prof;
     }
 
     // 2. Fallback: net.hadess.PowerProfiles on system bus
-    let output = Command::new("busctl")
+    if let Ok(out) = Command::new("busctl")
         .args([
             "get-property",
             "net.hadess.PowerProfiles",
@@ -46,17 +45,11 @@ fn get_active_profile() -> String {
             "net.hadess.PowerProfiles",
             "ActiveProfile",
         ])
-        .output();
-
-    if let Ok(out) = output {
-        let text = String::from_utf8_lossy(&out.stdout);
-        if let Some(start) = text.find('"') {
-            if let Some(end) = text.rfind('"') {
-                if end > start {
-                    return text[start + 1..end].to_string();
-                }
-            }
-        }
+        .output()
+        && out.status.success()
+        && let Some(prof) = extract_quoted(&out.stdout)
+    {
+        return prof;
     }
 
     "balanced".to_string()
@@ -69,10 +62,8 @@ fn set_active_profile(profile: &str) -> bool {
         _ => "balanced",
     };
 
-    let mut ok = false;
-
     // 1. Set via KDE Solid PowerManagement (user session bus)
-    let status_kde = Command::new("busctl")
+    let mut ok = Command::new("busctl")
         .args([
             "--user",
             "call",
@@ -83,31 +74,23 @@ fn set_active_profile(profile: &str) -> bool {
             "s",
             norm,
         ])
-        .status();
+        .status()
+        .is_ok_and(|s| s.success());
 
-    if let Ok(s) = status_kde {
-        if s.success() {
-            ok = true;
-        }
-    }
-
-    // 2. Set via net.hadess.PowerProfiles (system bus)
-    let status_hadess = Command::new("busctl")
-        .args([
-            "set-property",
-            "net.hadess.PowerProfiles",
-            "/net/hadess/PowerProfiles",
-            "net.hadess.PowerProfiles",
-            "ActiveProfile",
-            "s",
-            norm,
-        ])
-        .status();
-
-    if let Ok(s) = status_hadess {
-        if s.success() {
-            ok = true;
-        }
+    // 2. Fallback: Set via net.hadess.PowerProfiles (system bus)
+    if !ok {
+        ok = Command::new("busctl")
+            .args([
+                "set-property",
+                "net.hadess.PowerProfiles",
+                "/net/hadess/PowerProfiles",
+                "net.hadess.PowerProfiles",
+                "ActiveProfile",
+                "s",
+                norm,
+            ])
+            .status()
+            .is_ok_and(|s| s.success());
     }
 
     // Signal Waybar to refresh the custom/battery module immediately
@@ -133,10 +116,10 @@ fn get_battery_info() -> (u32, String, bool) {
                 if let Ok(s_str) = fs::read_to_string(path.join("status")) {
                     status = s_str.trim().to_string();
                 }
-            } else if name.starts_with("AC") || name.starts_with("ADP") {
-                if let Ok(o_str) = fs::read_to_string(path.join("online")) {
-                    ac_online = o_str.trim() == "1";
-                }
+            } else if (name.starts_with("AC") || name.starts_with("ADP"))
+                && let Ok(o_str) = fs::read_to_string(path.join("online"))
+            {
+                ac_online = o_str.trim() == "1";
             }
         }
     }
@@ -266,5 +249,20 @@ pub fn handle_power(args: &[String]) {
         _ => {
             eprintln!("Usage: wt-rust power <status|next|prev|set <profile>|get>");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_quoted() {
+        assert_eq!(
+            extract_quoted(b"s \"performance\"\n"),
+            Some("performance".to_string())
+        );
+        assert_eq!(extract_quoted(b"unquoted"), None);
+        assert_eq!(extract_quoted(b"\""), None);
     }
 }

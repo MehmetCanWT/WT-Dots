@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -22,6 +23,7 @@ pub fn sync_keybinds() {
 
     let apps_dir = home.join(".local/share/applications");
     let _ = fs::create_dir_all(&apps_dir);
+    let mut active_files = HashSet::new();
 
     for line in content.lines() {
         let line = line.trim();
@@ -36,7 +38,10 @@ pub fn sync_keybinds() {
                 continue;
             }
 
-            let slug = format!("wt-bind-{}", key.to_ascii_lowercase().replace('+', "-"));
+            let slug = format!(
+                "wt-bind-{}",
+                key.to_ascii_lowercase().replace(' ', "").replace('+', "-")
+            );
             let desktop_file = format!("{}.desktop", slug);
             let desktop_path = apps_dir.join(&desktop_file);
 
@@ -57,13 +62,44 @@ pub fn sync_keybinds() {
             let action_val = format!("{},none,WT Shortcut {}", key, key);
             let _ = Command::new("kwriteconfig6")
                 .args([
-                    "--file", "kglobalshortcutsrc",
-                    "--group", "services",
-                    "--group", &desktop_file,
-                    "--key", "_launch",
+                    "--file",
+                    "kglobalshortcutsrc",
+                    "--group",
+                    "services",
+                    "--group",
+                    &desktop_file,
+                    "--key",
+                    "_launch",
                     &action_val,
                 ])
                 .status();
+
+            active_files.insert(desktop_file);
+        }
+    }
+
+    if let Ok(entries) = fs::read_dir(&apps_dir) {
+        for entry in entries.flatten() {
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if fname.starts_with("wt-bind-")
+                && fname.ends_with(".desktop")
+                && !active_files.contains(&fname)
+            {
+                let _ = fs::remove_file(entry.path());
+                let _ = Command::new("kwriteconfig6")
+                    .args([
+                        "--file",
+                        "kglobalshortcutsrc",
+                        "--group",
+                        "services",
+                        "--group",
+                        &fname,
+                        "--key",
+                        "_launch",
+                        "--delete",
+                    ])
+                    .status();
+            }
         }
     }
 
@@ -96,14 +132,13 @@ pub fn watch_keybinds() {
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(800));
-        if let Ok(meta) = fs::metadata(&conf_path) {
-            if let Ok(mtime) = meta.modified() {
-                if mtime > last_mtime {
-                    last_mtime = mtime;
-                    println!("Changes detected in keybinds.conf. Re-syncing...");
-                    sync_keybinds();
-                }
-            }
+        if let Ok(meta) = fs::metadata(&conf_path)
+            && let Ok(mtime) = meta.modified()
+            && mtime > last_mtime
+        {
+            last_mtime = mtime;
+            println!("Changes detected in keybinds.conf. Re-syncing...");
+            sync_keybinds();
         }
     }
 }
@@ -115,4 +150,3 @@ pub fn handle_keybinds(args: &[String]) {
         sync_keybinds();
     }
 }
-
