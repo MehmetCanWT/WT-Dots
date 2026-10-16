@@ -11,11 +11,13 @@
         "custom/workspaces"
     ],
     "modules-center": [
-        "clock#time"
+        "clock#time",
+        "custom/agy"
     ],
     "modules-right": [
         "tray",
         "custom/separator-right",
+        "network",
         "pulseaudio",
         "backlight",
         "custom/battery"
@@ -53,6 +55,13 @@
         "format": "{:%A    %H:%M}",
         "tooltip": false
     },
+    "custom/agy": {
+        "interval": 5,
+        "exec": "wt-rust agy",
+        "return-type": "json",
+        "format": "{}",
+        "tooltip": true
+    },
     "tray": {
         "icon-size": 18,
         "spacing": 10
@@ -60,6 +69,16 @@
     "custom/separator-right": {
         "format": "|",
         "tooltip": false
+    },
+    "network": {
+        "format-wifi": "󰤨 {essid}",
+        "format-ethernet": "󰈀 {ipaddr}/{cidr}",
+        "tooltip-format": "{ifname} via {gwaddr} 󰊗",
+        "tooltip-format-wifi": "󰤨 {essid} ({signalStrength}%) 󰩟 {ipaddr}",
+        "tooltip-format-ethernet": "󰈀 {ifname} 󰩟 {ipaddr}",
+        "tooltip-format-disconnected": "Disconnected",
+        "format-linked": "󰈀 {ifname} (No IP)",
+        "format-disconnected": "󰤭 Disconnected"
     },
     "pulseaudio": {
         "format": "{icon} {volume}%",

@@ -49,8 +49,10 @@ window#waybar {
 #custom-memory,
 #custom-workspaces,
 #clock,
+#custom-agy,
 #tray,
 #custom-separator-right,
+#network,
 #pulseaudio,
 #backlight,
 #battery,
@@ -88,10 +90,24 @@ window#waybar {
     transition: color 0.15s ease-in-out;
 }
 
-/* Center Island: Clock */
+/* Center Island: Clock & AGY */
 #clock {
     padding: 0px 4px;
     font-weight: 500;
+}
+
+#custom-agy {
+    padding-left: 10px;
+    padding-right: 4px;
+    font-weight: 500;
+}
+
+#custom-agy.critical {
+    color: @critical-color;
+}
+
+#custom-agy.warning {
+    color: @warning-color;
 }
 
 /* Right Island: Hardware & Controls */
@@ -111,6 +127,14 @@ window#waybar {
     color: @text-muted;
     padding: 0px 8px;
     font-size: 13.5px;
+}
+
+#network {
+    padding: 0px 10px;
+}
+
+#network.disconnected {
+    color: @critical-color;
 }
 
 #pulseaudio {

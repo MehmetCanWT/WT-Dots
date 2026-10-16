@@ -10,10 +10,11 @@ Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring a floating 3-island **
   - 3-island floating pill layout (`#111116` dark background with dynamic accent border and shadow).
   - Desktop & fullscreen friendly (`layer: "background"`, `exclusive: false`) — stays visible on `Meta+D` (Show Desktop) while windows smoothly cover the bar when maximized.
   - Left island: CPU utilization + core temp, GPU utilization + temp (`wt-rust gpu`), RAM usage, and active workspace dots (`● ○`).
-  - Center island: Day & time clock.
-  - Right island: System tray, audio volume (`wt-rust volume`, capped at 100%), backlight (`wt-rust brightness`, 1% hard floor + KDE DBus sync), and battery/power profile status (`wt-rust power`).
+  - Center island: Day & time clock alongside Antigravity active model & session token/quota monitor (`wt-rust agy`).
+  - Right island: System tray, network indicator (Wi-Fi / Ethernet), audio volume (`wt-rust volume`, capped at 100%), backlight (`wt-rust brightness`, 1% hard floor + KDE DBus sync), and battery/power profile status (`wt-rust power`).
 - **`wt-rust` (`WT-Rust`)**:
   - Zero-bloat, single-binary Rust companion replacing all external shell/Python scripts:
+  - `wt-rust agy`: Fast (<1ms) parser displaying current Antigravity CLI model, session token usage, and quota limits directly in Waybar.
   - `wt-rust wallpaper [select|apply <path>]`: Hardware-accelerated (`eframe`/`egui` + Wayland + Glow) zero-text fullscreen stepped-carousel wallpaper selector with centered 4-color theme swatch preview, smooth background crossfade, and multi-core RAM/disk caching (`~/.cache/wt-rust/`).
   - `wt-rust theme [get <path> | apply [path]]`: Fast (<1ms) dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (desktop accent & window decorations), GTK 3 & GTK 4, Kitty terminal (`current-theme.conf` with 16-color ANSI harmony), Waybar (`theme.css`), Rofi (`theme.rasi`), and Fastfetch logo accent.
   - `wt-rust keybinds [watch]`: Syncs `~/.config/keybinds.conf` into KDE Plasma 6 global shortcuts (`kglobalshortcutsrc`) and cleans up removed bindings automatically.
@@ -31,6 +32,10 @@ Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring a floating 3-island **
 
 ```
 WT-Dots/
+├── install.sh          # One-shot idempotent installer & config linker
+├── keybinds.conf       # Declarative KDE Plasma 6 global shortcuts (Meta+W)
+├── systemd/
+│   └── waybar.service  # Systemd user service for Waybar autostart
 ├── waybar/
 │   ├── config.jsonc    # Waybar layout & module bindings
 │   ├── style.css       # 3-island CSS styling & color variables
@@ -40,16 +45,17 @@ WT-Dots/
 │   ├── Cargo.lock
 │   └── src/
 │       ├── main.rs
+│       ├── agy.rs
 │       ├── audio.rs
 │       ├── keybinds.rs
 │       ├── power.rs
+│       ├── sysinfo.rs
 │       ├── theme.rs
 │       ├── wallpaper.rs
 │       └── waybar.rs
 ├── rofi/
 │   ├── config.rasi     # Rofi settings & keybindings
 │   └── theme.rasi      # Custom Rofi theme (dynamically updated by wt-rust)
-├── keybinds.conf       # Declarative KDE Plasma 6 global shortcuts
 ├── road.md             # Project roadmap & engineering log
 └── README.md
 ```
@@ -71,33 +77,31 @@ WT-Dots/
 
 ## Installation & Setup
 
-### 1. Build and Install `wt-rust`
+### Automatic Setup (Recommended)
+
+Run the included installer to build `wt-rust` in release mode, symlink configurations to `~/.config/`, configure Spectacle screenshots, enable the Waybar systemd service, and synchronize keybindings:
 
 ```bash
-cd WT-Rust
-cargo build --release
-install -Dm755 target/release/wt-rust ~/.local/bin/wt-rust
+./install.sh
 ```
 
-Make sure `~/.local/bin` is in your `$PATH`.
+### Manual Setup
 
-### 2. Sync Configuration Files
+1. **Build and Install `wt-rust`**:
+   ```bash
+   cargo build --release --manifest-path WT-Rust/Cargo.toml
+   install -Dm755 WT-Rust/target/release/wt-rust ~/.local/bin/wt-rust
+   ```
 
-```bash
-# Waybar
-mkdir -p ~/.config/waybar
-cp -r waybar/* ~/.config/waybar/
+2. **Symlink Configurations**:
+   ```bash
+   ln -sfn "$PWD/waybar" ~/.config/waybar
+   ln -sfn "$PWD/rofi" ~/.config/rofi
+   ln -sfn "$PWD/keybinds.conf" ~/.config/keybinds.conf
+   wt-rust keybinds
+   ```
 
-# Rofi
-mkdir -p ~/.config/rofi
-cp -r rofi/* ~/.config/rofi/
-
-# Keybindings
-cp keybinds.conf ~/.config/keybinds.conf
-wt-rust keybinds
-```
-
-### 3. Waybar Autostart (systemd user service)
+3. **Waybar Autostart (systemd user service)**:
 
 ```bash
 mkdir -p ~/.config/systemd/user
