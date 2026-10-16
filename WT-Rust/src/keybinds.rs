@@ -16,7 +16,7 @@ pub fn normalize_key(raw: &str) -> String {
         .split('+')
         .map(|p| {
             let trimmed = p.trim();
-            if trimmed.eq_ignore_ascii_case("enter") {
+            if trimmed.eq_ignore_ascii_case("enter") || trimmed.eq_ignore_ascii_case("return") {
                 "Return".to_string()
             } else if trimmed.eq_ignore_ascii_case("meta") || trimmed.eq_ignore_ascii_case("super") {
                 "Meta".to_string()
@@ -26,6 +26,8 @@ pub fn normalize_key(raw: &str) -> String {
                 "Alt".to_string()
             } else if trimmed.eq_ignore_ascii_case("shift") {
                 "Shift".to_string()
+            } else if trimmed.len() == 1 {
+                trimmed.to_ascii_uppercase()
             } else {
                 trimmed.to_string()
             }
@@ -62,42 +64,6 @@ pub fn derive_action_info(key: &str, cmd: &str) -> (String, String) {
             format!("{} ({})", cap_id, key),
         )
     }
-}
-
-pub fn key_to_qt_code(key: &str) -> Option<i32> {
-    let mut modifier = 0i32;
-    let mut base_code = None;
-
-    for part in key.split('+') {
-        let p = part.trim();
-        if p.eq_ignore_ascii_case("meta") || p.eq_ignore_ascii_case("super") {
-            modifier |= 0x1000_0000;
-        } else if p.eq_ignore_ascii_case("ctrl") || p.eq_ignore_ascii_case("control") {
-            modifier |= 0x0400_0000;
-        } else if p.eq_ignore_ascii_case("alt") {
-            modifier |= 0x0800_0000;
-        } else if p.eq_ignore_ascii_case("shift") {
-            modifier |= 0x0200_0000;
-        } else if p.eq_ignore_ascii_case("return") || p.eq_ignore_ascii_case("enter") {
-            base_code = Some(0x0100_0004);
-        } else if p.eq_ignore_ascii_case("space") {
-            base_code = Some(0x20);
-        } else if p.eq_ignore_ascii_case("tab") {
-            base_code = Some(0x0100_0001);
-        } else if p.eq_ignore_ascii_case("escape") || p.eq_ignore_ascii_case("esc") {
-            base_code = Some(0x0100_0000);
-        } else if p.len() == 1 {
-            let ch = p.chars().next()?.to_ascii_uppercase();
-            base_code = Some(ch as i32);
-        } else if (p.starts_with('F') || p.starts_with('f'))
-            && let Ok(num) = p[1..].parse::<i32>()
-            && (1..=35).contains(&num)
-        {
-            base_code = Some(0x0100_0030 + (num - 1));
-        }
-    }
-
-    base_code.map(|b| modifier | b)
 }
 
 pub fn sync_keybinds() {
@@ -184,23 +150,9 @@ pub fn sync_keybinds() {
 
     let wtdots_desktop = apps_dir.join("wtdots.desktop");
     let _ = fs::write(&wtdots_desktop, desktop_content);
-    // Sync to KDE global shortcuts under [services][wtdots.desktop]
-    let _ = Command::new("kwriteconfig6")
-        .args([
-            "--file",
-            "kglobalshortcutsrc",
-            "--group",
-            "services",
-            "--group",
-            "wtdots.desktop",
-            "--key",
-            "_launch",
-            "none,none,WTDots",
-        ])
-        .status();
 
+    // Clean up any legacy corrupted/manual entries under [services][wtdots.desktop]
     for act in &actions {
-        let action_val = format!("{},none,{}", act.key, act.title);
         let _ = Command::new("kwriteconfig6")
             .args([
                 "--file",
@@ -211,10 +163,23 @@ pub fn sync_keybinds() {
                 "wtdots.desktop",
                 "--key",
                 &act.id,
-                &action_val,
+                "--delete",
             ])
             .status();
     }
+    let _ = Command::new("kwriteconfig6")
+        .args([
+            "--file",
+            "kglobalshortcutsrc",
+            "--group",
+            "services",
+            "--group",
+            "wtdots.desktop",
+            "--key",
+            "_launch",
+            "--delete",
+        ])
+        .status();
 
     // Unbind plasmashell default clipboard shortcut if Meta+V is used by WTDots
     let has_meta_v = actions.iter().any(|a| a.key == "Meta+V");
@@ -280,49 +245,8 @@ pub fn sync_keybinds() {
         .arg(&apps_dir)
         .status();
 
-    // Rebuild KDE system configuration cache so KSycoca discovers wtdots.desktop immediately
+    // Rebuild KDE system configuration cache so KSycoca discovers wtdots.desktop defaults immediately
     let _ = Command::new("kbuildsycoca6").status();
-
-    // Register actions with KDE kglobalaccel DBus interface and bind active shortcut keys
-    for act in &actions {
-        let _ = Command::new("busctl")
-            .args([
-                "--user",
-                "call",
-                "org.kde.kglobalaccel",
-                "/kglobalaccel",
-                "org.kde.KGlobalAccel",
-                "doRegister",
-                "as",
-                "4",
-                "wtdots.desktop",
-                &act.id,
-                "WTDots",
-                &act.title,
-            ])
-            .status();
-
-        if let Some(qt_code) = key_to_qt_code(&act.key) {
-            let _ = Command::new("busctl")
-                .args([
-                    "--user",
-                    "call",
-                    "org.kde.kglobalaccel",
-                    "/kglobalaccel",
-                    "org.kde.KGlobalAccel",
-                    "setForeignShortcut",
-                    "asai",
-                    "4",
-                    "wtdots.desktop",
-                    &act.id,
-                    "WTDots",
-                    &act.title,
-                    "1",
-                    &qt_code.to_string(),
-                ])
-                .status();
-        }
-    }
 
     let _ = Command::new("qdbus-qt6")
         .args(["org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure"])
@@ -434,7 +358,7 @@ mod tests {
         assert_eq!(normalize_key("meta+enter"), "Meta+Return");
         assert_eq!(normalize_key("super+enter"), "Meta+Return");
         assert_eq!(normalize_key("Meta+W"), "Meta+W");
-        assert_eq!(normalize_key("ctrl+alt+t"), "Ctrl+Alt+t");
+        assert_eq!(normalize_key("ctrl+alt+t"), "Ctrl+Alt+T");
     }
 
     #[test]
@@ -450,14 +374,5 @@ mod tests {
         let (id3, title3) = derive_action_info("Meta+V", "wt-rust clipboard");
         assert_eq!(id3, "Clipboard");
         assert_eq!(title3, "Clipboard History");
-    }
-
-    #[test]
-    fn test_key_to_qt_code() {
-        assert_eq!(key_to_qt_code("Meta+Return"), Some(285212676));
-        assert_eq!(key_to_qt_code("Meta+Enter"), Some(285212676));
-        assert_eq!(key_to_qt_code("Meta+W"), Some(268435543));
-        assert_eq!(key_to_qt_code("Meta+V"), Some(268435542));
-        assert_eq!(key_to_qt_code("Ctrl+Alt+T"), Some(201326676));
     }
 }
