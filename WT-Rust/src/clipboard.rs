@@ -312,60 +312,68 @@ impl eframe::App for ClipboardApp {
                                         );
                                     }
 
-                                    ui.vertical(|ui| {
-                                        ui.add(
-                                            egui::Label::new(
-                                                egui::RichText::new(&item.display_text)
-                                                    .color(accent_color)
-                                                    .strong()
-                                                    .size(13.0),
-                                            )
-                                            .selectable(false),
-                                        );
-                                        ui.add(
-                                            egui::Label::new(
-                                                egui::RichText::new(&item.details)
-                                                    .color(text_muted)
-                                                    .size(11.0),
-                                            )
-                                            .selectable(false),
-                                        );
-                                    });
-                                } else {
-                                    ui.add(
-                                        egui::Label::new(
-                                            egui::RichText::new("󰅍")
-                                                .color(if is_selected {
-                                                    accent_color
-                                                } else {
-                                                    text_muted
-                                                })
-                                                .size(15.0),
-                                        )
-                                        .selectable(false),
-                                    );
-
-                                    ui.vertical(|ui| {
-                                        ui.add(
-                                            egui::Label::new(
-                                                egui::RichText::new(&item.display_text)
-                                                    .color(text_main)
-                                                    .font(egui::FontId::monospace(12.5)),
-                                            )
-                                            .selectable(false),
-                                        );
-                                        if !item.details.is_empty() {
+                                        let text_w = (ui.available_width() - 8.0).max(80.0);
+                                        ui.vertical(|ui| {
+                                            ui.set_max_width(text_w);
+                                            ui.add(
+                                                egui::Label::new(
+                                                    egui::RichText::new(&item.display_text)
+                                                        .color(accent_color)
+                                                        .strong()
+                                                        .size(13.0),
+                                                )
+                                                .selectable(false)
+                                                .wrap_mode(egui::TextWrapMode::Wrap),
+                                            );
                                             ui.add(
                                                 egui::Label::new(
                                                     egui::RichText::new(&item.details)
                                                         .color(text_muted)
-                                                        .size(10.5),
+                                                        .size(11.0),
                                                 )
-                                                .selectable(false),
+                                                .selectable(false)
+                                                .wrap_mode(egui::TextWrapMode::Truncate),
                                             );
-                                        }
-                                    });
-                                }
+                                        });
+                                    } else {
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new("󰅍")
+                                                    .color(if is_selected {
+                                                        accent_color
+                                                    } else {
+                                                        text_muted
+                                                    })
+                                                    .size(15.0),
+                                            )
+                                            .selectable(false),
+                                        );
+
+                                        let text_w = (ui.available_width() - 8.0).max(80.0);
+                                        ui.vertical(|ui| {
+                                            ui.set_max_width(text_w);
+                                            ui.add(
+                                                egui::Label::new(
+                                                    egui::RichText::new(&item.display_text)
+                                                        .color(text_main)
+                                                        .font(egui::FontId::monospace(12.5)),
+                                                )
+                                                .selectable(false)
+                                                .wrap_mode(egui::TextWrapMode::Wrap),
+                                            );
+                                            if !item.details.is_empty() {
+                                                ui.add(
+                                                    egui::Label::new(
+                                                        egui::RichText::new(&item.details)
+                                                            .color(text_muted)
+                                                            .size(10.5),
+                                                    )
+                                                    .selectable(false)
+                                                    .wrap_mode(egui::TextWrapMode::Truncate),
+                                                );
+                                            }
+                                        });
+                                    }
                             });
                         });
 
@@ -431,6 +439,51 @@ impl eframe::App for ClipboardApp {
     }
 }
 
+pub fn format_preview_max_lines(raw: &str, max_chars_per_line: usize, max_lines: usize) -> String {
+    let clean = raw.trim().replace(['\r', '\t'], " ");
+    let flat = clean.replace('\n', " ");
+    let trimmed = flat.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let mut result_lines = Vec::new();
+    let mut remaining = trimmed;
+
+    while !remaining.is_empty() && result_lines.len() < max_lines {
+        let char_count = remaining.chars().count();
+        if char_count <= max_chars_per_line {
+            result_lines.push(remaining.to_string());
+            break;
+        }
+
+        // On the final allowed line, cut off and append ellipsis
+        if result_lines.len() == max_lines - 1 {
+            let cutoff = max_chars_per_line.saturating_sub(3);
+            let chunk: String = remaining.chars().take(cutoff).collect();
+            result_lines.push(format!("{}...", chunk.trim_end()));
+            break;
+        }
+
+        // Search for a word boundary before max_chars_per_line
+        let line_chars: Vec<char> = remaining.chars().take(max_chars_per_line).collect();
+        let last_space = line_chars.iter().rposition(|&c| c == ' ');
+
+        let split_char_idx = match last_space {
+            Some(idx) if idx > 12 => idx,
+            _ => max_chars_per_line,
+        };
+
+        let chunk: String = remaining.chars().take(split_char_idx).collect();
+        result_lines.push(chunk.trim().to_string());
+
+        let skip_chars = split_char_idx + if remaining.chars().nth(split_char_idx) == Some(' ') { 1 } else { 0 };
+        remaining = remaining.char_indices().nth(skip_chars).map(|(i, _)| &remaining[i..]).unwrap_or("");
+    }
+
+    result_lines.join("\n")
+}
+
 pub fn parse_cliphist_list(output: &str) -> Vec<ClipItem> {
     let mut items = Vec::new();
 
@@ -459,10 +512,9 @@ pub fn parse_cliphist_list(output: &str) -> Vec<ClipItem> {
                 details,
             });
         } else {
-            let clean_content = content.replace(['\n', '\r', '\t'], " ");
-            let preview: String = clean_content.chars().take(80).collect();
+            let preview = format_preview_max_lines(content, 42, 2);
             let char_count = content.chars().count();
-            let details = if char_count > 80 {
+            let details = if char_count > 60 {
                 format!("{} karakter", char_count)
             } else {
                 String::new()
@@ -524,9 +576,14 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
                 }
                 let mut parts = trimmed.split('|');
                 let content = parts.next().unwrap_or("").replace(['\n', '\r', '\t'], " ");
+                let preview = format_preview_max_lines(&content, 42, 2);
                 let len_str = parts.next().unwrap_or("");
                 let details = if let Ok(l) = len_str.parse::<usize>() {
-                    format!("{} karakter", l)
+                    if l > 60 {
+                        format!("{} karakter", l)
+                    } else {
+                        String::new()
+                    }
                 } else {
                     String::new()
                 };
@@ -535,7 +592,7 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
                     raw_line: content.clone(),
                     id: (idx + 1) as u64,
                     is_image: false,
-                    display_text: content,
+                    display_text: preview,
                     details,
                 });
             }
@@ -703,5 +760,17 @@ mod tests {
         app.filter_items();
         assert_eq!(app.filtered_indices.len(), 1);
         assert_eq!(app.filtered_indices[0], 2);
+    }
+
+    #[test]
+    fn test_format_preview_max_lines() {
+        let short = "simple text";
+        assert_eq!(format_preview_max_lines(short, 40, 2), "simple text");
+
+        let long = "this is a very long line that exceeds forty characters and should definitely wrap to line two and truncate";
+        let formatted = format_preview_max_lines(long, 40, 2);
+        let lines: Vec<&str> = formatted.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[1].ends_with("..."));
     }
 }
