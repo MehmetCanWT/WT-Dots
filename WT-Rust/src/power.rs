@@ -208,12 +208,7 @@ pub fn handle_power(args: &[String]) {
             };
 
             let bat_icon = get_battery_icon(capacity, is_charging);
-
-            let pal = crate::theme::get_current_palette();
-            let text = format!(
-                "<span color='{}'>{} {}</span> {}%",
-                pal.accent, plan_icon, bat_icon, capacity
-            );
+            let text = format!("{} {} {}%", plan_icon, bat_icon, capacity);
 
             let ac_text = if ac_online { " (AC Bağlı)" } else { "" };
             let tooltip = format!(

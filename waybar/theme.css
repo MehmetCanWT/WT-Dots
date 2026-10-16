@@ -1,8 +1,8 @@
 /* Dynamic Palette extracted by wt-rust */
 @define-color base-bg #111116;
 @define-color base-border rgba(155, 228, 88, 0.22);
-@define-color text-color #f0f2ed;
-@define-color text-dim #bccbae;
+@define-color text-color #9be458;
+@define-color text-dim #9be458;
 @define-color text-muted #748a60;
 @define-color accent-color #9be458;
 @define-color accent-secondary #70e17c;

@@ -312,17 +312,15 @@ pub fn handle_agy(_args: &[String]) {
 
     let short_model = clean_model_name(&full_model);
 
-    let pal = crate::theme::get_current_palette();
-
     // Rule: If agy is not running, show ONLY "Gemini". If running, show active model name!
     let (text, class, menu_title) = match agy_pid {
         Some(pid) => (
-            format!("<span color='{}'>󰚩</span> {}", pal.accent, short_model),
+            format!("󰚩 {}", short_model),
             Some("normal".to_string()),
             format!("<b>{}</b> (Aktif · PID {})", escape_pango(&full_model), pid),
         ),
         None => (
-            format!("<span color='{}'>󰚩</span> Gemini", pal.text_muted),
+            "󰚩 Gemini".to_string(),
             Some("offline".to_string()),
             "<b>Gemini</b>".to_string(),
         ),

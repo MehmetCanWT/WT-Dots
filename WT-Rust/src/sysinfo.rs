@@ -155,14 +155,13 @@ fn get_top_cpu_processes() -> Vec<(String, u64)> {
 }
 
 pub fn get_cpu() {
-    let pal = crate::theme::get_current_palette();
     let usage = get_cpu_usage();
     let temp_opt = get_cpu_temp();
     let temp_str = temp_opt
-        .map(|t| format!("  <span color='{}'>{}°C</span>", pal.text_dim, t))
+        .map(|t| format!("  {}°C", t))
         .unwrap_or_default();
 
-    let text = format!("<span color='{}'></span> {}%{}", pal.accent, usage, temp_str);
+    let text = format!(" {}%{}", usage, temp_str);
 
     let top_procs = get_top_cpu_processes();
     let mut tooltip_lines = vec![format!("İşlemci Kullanımı: %{}\nSıcaklık: {}°C\n", usage, temp_opt.unwrap_or(0))];
@@ -275,8 +274,7 @@ pub fn get_memory() {
     let used_str = format_bytes(used_kib * 1024);
     let total_str = format_bytes(total_kib * 1024);
 
-    let pal = crate::theme::get_current_palette();
-    let text = format!("<span color='{}'>󰍛</span> {}%", pal.accent, pct);
+    let text = format!("󰍛 {}%", pct);
 
     let top_procs = get_top_mem_processes();
     let mut tooltip_lines = vec![format!("Bellek Kullanımı: %{} ({} / {})\n", pct, used_str, total_str)];

@@ -58,7 +58,7 @@ window#waybar {
 #battery,
 #custom-battery {
     background-color: transparent;
-    color: @text-color;
+    color: @accent-color;
     margin: 0px;
     border-radius: 0px;
 }
@@ -85,23 +85,18 @@ window#waybar {
     font-size: 13.5px;
 }
 
-#custom-workspaces:hover {
-    color: @accent-color;
-    transition: color 0.15s ease-in-out;
-}
-
 /* Center Island: Clock & AGY */
 #clock {
     padding: 0px 6px;
     font-weight: 500;
-    color: @text-color;
+    color: @accent-color;
 }
 
 #custom-agy {
     padding-left: 10px;
     padding-right: 6px;
     font-weight: 500;
-    color: @text-color;
+    color: @accent-color;
 }
 
 #custom-agy.offline {
@@ -114,19 +109,6 @@ window#waybar {
 
 #custom-agy.warning {
     color: @warning-color;
-}
-
-#custom-cpu:hover,
-#custom-gpu:hover,
-#custom-memory:hover,
-#clock:hover,
-#custom-agy:hover,
-#network:hover,
-#pulseaudio:hover,
-#backlight:hover,
-#custom-battery:hover {
-    color: @accent-color;
-    transition: color 0.15s ease-in-out;
 }
 
 /* Right Island: Hardware & Controls */
@@ -182,7 +164,7 @@ window#waybar {
 }
 
 #custom-battery.profile-balanced {
-    color: @text-color;
+    color: @accent-color;
 }
 
 #battery.warning,

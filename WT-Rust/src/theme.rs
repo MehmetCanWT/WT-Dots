@@ -311,8 +311,8 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
              @define-color critical-color #e05f52;\n",
             pal.bg,
             pal.border,
-            pal.text_color,
-            pal.text_dim,
+            pal.accent,
+            pal.accent,
             pal.text_muted,
             pal.accent,
             pal.accent_secondary

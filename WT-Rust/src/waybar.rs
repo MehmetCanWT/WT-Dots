@@ -25,14 +25,10 @@ pub fn get_gpu() {
         let text = String::from_utf8_lossy(&out.stdout);
         let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
         if parts.len() >= 2 {
-            let pal = crate::theme::get_current_palette();
             let util = parts[0];
             let temp = parts[1];
             let resp = WaybarOutput {
-                text: format!(
-                    "<span color='{}'>󰢮</span> {}%  <span color='{}'>{}°C</span>",
-                    pal.accent, util, pal.text_dim, temp
-                ),
+                text: format!("󰢮 {}%  {}°C", util, temp),
                 tooltip: Value::Bool(false),
                 class: None,
             };
