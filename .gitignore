@@ -25,6 +25,6 @@ target/
 # KDE artifacts
 .directory
 
-# Roadmap (Private)
-road.md
-ROAD.md
+# Documentation policy (Only README.md is tracked in Git)
+*.md
+!README.md
