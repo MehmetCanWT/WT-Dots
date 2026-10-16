@@ -105,8 +105,6 @@
         "format": "{}",
         "exec": "wt-rust power status",
         "signal": 9,
-        "on-click": "wt-rust power next",
-        "on-scroll-up": "wt-rust power next",
-        "on-scroll-down": "wt-rust power prev"
+        "on-click": "wt-rust power next"
     }
 }

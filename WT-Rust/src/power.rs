@@ -230,7 +230,7 @@ pub fn handle_power(args: &[String]) {
 
             let ac_text = if ac_online { " (AC Bağlı)" } else { "" };
             let tooltip = format!(
-                "Batarya: %{} ({}{})\nGüç Planı: {} ({})\n\nSol Tık / Kaydırma: Güç planını değiştir",
+                "Batarya: %{} ({}{})\nGüç Planı: {} ({})\n\nSol Tık: Güç planını değiştir",
                 capacity, bat_status, ac_text, plan_name_tr, profile
             );
 
