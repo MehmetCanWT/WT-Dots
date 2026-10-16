@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::env;
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
@@ -11,15 +11,6 @@ pub struct WaybarAgyOutput {
     pub tooltip: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub class: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-struct CachedUsage {
-    timestamp: u64,
-    tokens_5h: u64,
-    tokens_7d: u64,
-    earliest_5h_ts: u64,
-    earliest_7d_ts: u64,
 }
 
 fn get_app_dir() -> PathBuf {
@@ -92,17 +83,16 @@ pub fn extract_quota_reset(log_content: &str) -> Option<String> {
         if line.contains("RESOURCE_EXHAUSTED") || line.contains("Individual quota reached") {
             if let Some(idx) = line.find("Resets in ") {
                 let rest = &line[idx + "Resets in ".len()..];
-                let reset_time = rest.split(['.', ' ']).next().unwrap_or("soon");
+                let reset_time = rest.split(['.', ' ']).next().unwrap_or("yakında");
                 return Some(reset_time.to_string());
             }
-            return Some("exceeded".to_string());
+            return Some("dolu".to_string());
         }
     }
     None
 }
 
 fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
-    // Expected format: YYYY-MM-DDTHH:MM:SSZ
     let s = s.trim();
     if s.len() < 19 {
         return None;
@@ -124,7 +114,6 @@ fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
     let minute = tparts[1];
     let second = tparts[2];
 
-    // Compute days since 1970-01-01
     let mut y = year as i64;
     let m = month as i64;
     let d = day as i64;
@@ -140,8 +129,7 @@ fn parse_iso8601_to_unix(s: &str) -> Option<u64> {
     if days < 0 {
         return None;
     }
-    let secs = (days as u64) * 86400 + hour * 3600 + minute * 60 + second;
-    Some(secs)
+    Some((days as u64) * 86400 + hour * 3600 + minute * 60 + second)
 }
 
 fn read_last_log_chunk(log_path: &Path, max_bytes: u64) -> Option<String> {
@@ -187,13 +175,17 @@ struct SessionTokens {
     input: u64,
     output: u64,
     cache: u64,
+    earliest_5h: u64,
+    earliest_7d: u64,
 }
 
-fn read_session_tokens(app_dir: &Path, conv_id: &str) -> SessionTokens {
+fn read_session_tokens(app_dir: &Path, conv_id: &str, now_secs: u64) -> SessionTokens {
     let mut stats = SessionTokens {
         input: 0,
         output: 0,
         cache: 0,
+        earliest_5h: now_secs,
+        earliest_7d: now_secs,
     };
 
     let transcript_path = app_dir
@@ -202,6 +194,9 @@ fn read_session_tokens(app_dir: &Path, conv_id: &str) -> SessionTokens {
         .join(".system_generated")
         .join("logs")
         .join("transcript.jsonl");
+
+    let five_h_ago = now_secs.saturating_sub(5 * 3600);
+    let seven_d_ago = now_secs.saturating_sub(7 * 86400);
 
     if let Ok(content) = fs::read_to_string(transcript_path) {
         for line in content.lines() {
@@ -219,85 +214,21 @@ fn read_session_tokens(app_dir: &Path, conv_id: &str) -> SessionTokens {
                 if let Some(cache_tok) = v.get("cache_read_tokens").and_then(|t| t.as_u64()) {
                     stats.cache += cache_tok;
                 }
-            }
-        }
-    }
-
-    stats
-}
-
-fn get_or_update_usage_cache(app_dir: &Path, now_secs: u64) -> CachedUsage {
-    let cache_path = Path::new("/tmp/wt-rust-agy-cache.json");
-
-    if let Ok(content) = fs::read_to_string(cache_path)
-        && let Ok(cached) = serde_json::from_str::<CachedUsage>(&content)
-        && now_secs.saturating_sub(cached.timestamp) < 20
-    {
-        return cached;
-    }
-
-    let mut usage = CachedUsage {
-        timestamp: now_secs,
-        tokens_5h: 0,
-        tokens_7d: 0,
-        earliest_5h_ts: now_secs,
-        earliest_7d_ts: now_secs,
-    };
-
-    let brain_dir = app_dir.join("brain");
-    if let Ok(entries) = fs::read_dir(brain_dir) {
-        let five_hours_ago = now_secs.saturating_sub(5 * 3600);
-        let seven_days_ago = now_secs.saturating_sub(7 * 86400);
-
-        for entry in entries.flatten() {
-            let tpath = entry
-                .path()
-                .join(".system_generated")
-                .join("logs")
-                .join("transcript.jsonl");
-
-            if !tpath.exists() {
-                continue;
-            }
-
-            if let Ok(content) = fs::read_to_string(&tpath) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.is_empty() {
-                        continue;
+                if let Some(cat) = v.get("created_at").and_then(|c| c.as_str())
+                    && let Some(ts) = parse_iso8601_to_unix(cat)
+                {
+                    if ts >= five_h_ago && ts < stats.earliest_5h {
+                        stats.earliest_5h = ts;
                     }
-                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                        let created_at = v.get("created_at").and_then(|c| c.as_str());
-                        if let Some(cat) = created_at
-                            && let Some(ts) = parse_iso8601_to_unix(cat)
-                        {
-                            let toks = v.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0)
-                                + v.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0);
-
-                            if ts >= five_hours_ago {
-                                usage.tokens_5h += toks;
-                                if ts < usage.earliest_5h_ts {
-                                    usage.earliest_5h_ts = ts;
-                                }
-                            }
-                            if ts >= seven_days_ago {
-                                usage.tokens_7d += toks;
-                                if ts < usage.earliest_7d_ts {
-                                    usage.earliest_7d_ts = ts;
-                                }
-                            }
-                        }
+                    if ts >= seven_d_ago && ts < stats.earliest_7d {
+                        stats.earliest_7d = ts;
                     }
                 }
             }
         }
     }
 
-    if let Ok(json) = serde_json::to_string(&usage) {
-        let _ = fs::write(cache_path, json);
-    }
-
-    usage
+    stats
 }
 
 pub fn handle_agy(_args: &[String]) {
@@ -308,7 +239,7 @@ pub fn handle_agy(_args: &[String]) {
         .unwrap_or(Duration::ZERO)
         .as_secs();
 
-    // If agy is not running, output offline indicator
+    // If agy is not running, output clean offline indicator
     let Some(pid) = agy_pid else {
         let output = WaybarAgyOutput {
             text: "󰚩 Kapalı".to_string(),
@@ -340,82 +271,71 @@ pub fn handle_agy(_args: &[String]) {
         None
     };
 
-    let usage = get_or_update_usage_cache(&app_dir, now_secs);
-
-    // Model quota capacity pools (tokens)
-    // 1. Gemini 3.8 Flash (En Yüksek Limit)
-    let flash_cap_5h: u64 = 10_000_000;
-    let flash_cap_7d: u64 = 50_000_000;
-    let flash_rem_5h = 100u64.saturating_sub((usage.tokens_5h * 100 / flash_cap_5h).min(100));
-    let flash_rem_7d = 100u64.saturating_sub((usage.tokens_7d * 100 / flash_cap_7d).min(100));
-
-    // 2. Gemini 4 Argon (Orta Limit)
-    let argon_cap_5h: u64 = 4_000_000;
-    let argon_cap_7d: u64 = 20_000_000;
-    let argon_rem_5h = 100u64.saturating_sub((usage.tokens_5h * 100 / argon_cap_5h).min(100));
-    let argon_rem_7d = 100u64.saturating_sub((usage.tokens_7d * 100 / argon_cap_7d).min(100));
-
-    // 3. Claude (Tüm Modeller Ortak Limit)
-    let claude_cap_5h: u64 = 2_000_000;
-    let claude_cap_7d: u64 = 10_000_000;
-    let claude_rem_5h = 100u64.saturating_sub((usage.tokens_5h * 100 / claude_cap_5h).min(100));
-    let claude_rem_7d = 100u64.saturating_sub((usage.tokens_7d * 100 / claude_cap_7d).min(100));
-
-    // Reset durations
-    let reset_5h_secs = (usage.earliest_5h_ts + 5 * 3600).saturating_sub(now_secs);
-    let reset_5h_str = format_duration_tr(reset_5h_secs.max(60));
-
-    let reset_7d_str = if let Some(ref r) = quota_reset {
-        r.clone()
-    } else {
-        let secs = (usage.earliest_7d_ts + 7 * 86400).saturating_sub(now_secs);
-        format_duration_tr(secs.max(3600))
-    };
-
-    // Determine active model quota for bar display
-    let (active_rem_5h, active_rem_7d) = if full_model.contains("Argon") {
-        (argon_rem_5h, argon_rem_7d)
-    } else if full_model.contains("Claude") {
-        (claude_rem_5h, claude_rem_7d)
-    } else {
-        (flash_rem_5h, flash_rem_7d)
-    };
-
     let conv_id = get_active_conversation_id(&app_dir);
     let session = if let Some(ref cid) = conv_id {
-        read_session_tokens(&app_dir, cid)
+        read_session_tokens(&app_dir, cid, now_secs)
     } else {
         SessionTokens {
             input: 0,
             output: 0,
             cache: 0,
+            earliest_5h: now_secs,
+            earliest_7d: now_secs,
         }
     };
 
+    let reset_5h_secs = (session.earliest_5h + 5 * 3600).saturating_sub(now_secs);
+    let reset_5h_str = format_duration_tr(reset_5h_secs.max(60));
+
+    let reset_7d_str = if let Some(ref r) = quota_reset {
+        r.clone()
+    } else {
+        let secs = (session.earliest_7d + 7 * 86400).saturating_sub(now_secs);
+        format_duration_tr(secs.max(3600))
+    };
+
+    // Main bar display: ONLY the clean model name (no percentages/limits on the main bar)
     let (text, class) = match quota_reset {
         Some(ref reset_time) => (
             format!("󰚩 {} 󰅚 Limit: {}", short_model, reset_time),
             Some("critical".to_string()),
         ),
         None => (
-            format!("󰚩 {} · 5s: %{} · H: %{}", short_model, active_rem_5h, active_rem_7d),
+            format!("󰚩 {}", short_model),
             Some("normal".to_string()),
         ),
+    };
+
+    // Tooltip: Hierarchical model quota list with Gemini highest limit on top, Claude pooled
+    let flash_status = match quota_reset {
+        Some(ref r) if full_model.contains("Flash") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
+        _ => "Aktif · Kullanılabilir".to_string(),
+    };
+    let argon_status = match quota_reset {
+        Some(ref r) if full_model.contains("Argon") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
+        _ => "Hazır · Kullanılabilir".to_string(),
+    };
+    let claude_status = match quota_reset {
+        Some(ref r) if full_model.contains("Claude") => format!("Limit Aşıldı (Sıfırlanma: {})", r),
+        _ => "Hazır · Ortak Havuz".to_string(),
     };
 
     let tooltip = format!(
         "<b>Antigravity CLI</b> (Aktif · PID {})\n\
          Aktif Model: {}\n\n\
-         <b>Model Kalan Limitleri & Yenilenme:</b>\n\
+         <b>Model Kotaları & Yenilenme Süreleri:</b>\n\
          1. <b>Gemini 3.8 Flash</b> (En Yüksek Limit)\n\
-            • 5 Saatlik : %{} kalan (Yenilenme: {})\n\
-            • Haftalık  : %{} kalan (Yenilenme: {})\n\n\
+            • Durum: {}\n\
+            • 5 Saatlik Yenilenme: {}\n\
+            • Haftalık Yenilenme  : {}\n\n\
          2. <b>Gemini 4 Argon</b> (Orta Limit)\n\
-            • 5 Saatlik : %{} kalan (Yenilenme: {})\n\
-            • Haftalık  : %{} kalan (Yenilenme: {})\n\n\
+            • Durum: {}\n\
+            • 5 Saatlik Yenilenme: {}\n\
+            • Haftalık Yenilenme  : {}\n\n\
          3. <b>Claude</b> (Tüm Modeller Ortak Limit)\n\
-            • 5 Saatlik : %{} kalan (Yenilenme: {})\n\
-            • Haftalık  : %{} kalan (Yenilenme: {})\n\
+            • Durum: {}\n\
+            • 5 Saatlik Yenilenme: {}\n\
+            • Haftalık Yenilenme  : {}\n\
          ────────────────────────────\n\
          Oturum Kullanımı:\n\
            • Girdi: {}  • Çıktı: {}\n\
@@ -423,17 +343,14 @@ pub fn handle_agy(_args: &[String]) {
          Konuşma: {}",
         pid,
         full_model,
-        flash_rem_5h,
+        flash_status,
         reset_5h_str,
-        flash_rem_7d,
         reset_7d_str,
-        argon_rem_5h,
+        argon_status,
         reset_5h_str,
-        argon_rem_7d,
         reset_7d_str,
-        claude_rem_5h,
+        claude_status,
         reset_5h_str,
-        claude_rem_7d,
         reset_7d_str,
         format_tokens(session.input),
         format_tokens(session.output),

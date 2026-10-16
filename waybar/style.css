@@ -92,14 +92,19 @@ window#waybar {
 
 /* Center Island: Clock & AGY */
 #clock {
-    padding: 0px 4px;
+    padding: 0px 6px;
     font-weight: 500;
 }
 
 #custom-agy {
     padding-left: 10px;
-    padding-right: 4px;
+    padding-right: 6px;
     font-weight: 500;
+    color: @accent-color;
+}
+
+#custom-agy.offline {
+    color: @text-muted;
 }
 
 #custom-agy.critical {
