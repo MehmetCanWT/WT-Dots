@@ -158,9 +158,11 @@ impl eframe::App for ClipboardApp {
         let accent_color = egui::Color32::from_rgb(ar, ag, ab);
         let accent_border = egui::Color32::from_rgba_unmultiplied(ar, ag, ab, 90);
         let accent_subtle = egui::Color32::from_rgba_unmultiplied(ar, ag, ab, 45);
-        let bg_color = egui::Color32::from_rgba_unmultiplied(17, 17, 22, 248);
+        let bg_color = egui::Color32::from_rgb(17, 17, 22);
         let text_main = egui::Color32::from_rgb(240, 242, 237);
         let text_muted = egui::Color32::from_rgb(130, 142, 120);
+
+        ui.style_mut().interaction.selectable_labels = false;
 
         let container_frame = egui::Frame::new()
             .fill(bg_color)
@@ -169,12 +171,17 @@ impl eframe::App for ClipboardApp {
             .inner_margin(egui::Margin::same(10));
 
         container_frame.show(ui, |ui| {
+            ui.style_mut().interaction.selectable_labels = false;
+
             // 1. Header with search input
             ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("󰍉")
-                        .color(accent_color)
-                        .size(16.0),
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new("󰍉")
+                            .color(accent_color)
+                            .size(16.0),
+                    )
+                    .selectable(false),
                 );
 
                 let search_id = egui::IdSalt::new("clip_search_input");
@@ -202,10 +209,13 @@ impl eframe::App for ClipboardApp {
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(
-                        egui::RichText::new(format!("{} öge", self.filtered_indices.len()))
-                            .color(text_muted)
-                            .size(11.0),
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!("{} öge", self.filtered_indices.len()))
+                                .color(text_muted)
+                                .size(11.0),
+                        )
+                        .selectable(false),
                     );
                 });
             });
@@ -303,40 +313,55 @@ impl eframe::App for ClipboardApp {
                                     }
 
                                     ui.vertical(|ui| {
-                                        ui.label(
-                                            egui::RichText::new(&item.display_text)
-                                                .color(accent_color)
-                                                .strong()
-                                                .size(13.0),
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.display_text)
+                                                    .color(accent_color)
+                                                    .strong()
+                                                    .size(13.0),
+                                            )
+                                            .selectable(false),
                                         );
-                                        ui.label(
-                                            egui::RichText::new(&item.details)
-                                                .color(text_muted)
-                                                .size(11.0),
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.details)
+                                                    .color(text_muted)
+                                                    .size(11.0),
+                                            )
+                                            .selectable(false),
                                         );
                                     });
                                 } else {
-                                    ui.label(
-                                        egui::RichText::new("󰅍")
-                                            .color(if is_selected {
-                                                accent_color
-                                            } else {
-                                                text_muted
-                                            })
-                                            .size(15.0),
+                                    ui.add(
+                                        egui::Label::new(
+                                            egui::RichText::new("󰅍")
+                                                .color(if is_selected {
+                                                    accent_color
+                                                } else {
+                                                    text_muted
+                                                })
+                                                .size(15.0),
+                                        )
+                                        .selectable(false),
                                     );
 
                                     ui.vertical(|ui| {
-                                        ui.label(
-                                            egui::RichText::new(&item.display_text)
-                                                .color(text_main)
-                                                .font(egui::FontId::monospace(12.5)),
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.display_text)
+                                                    .color(text_main)
+                                                    .font(egui::FontId::monospace(12.5)),
+                                            )
+                                            .selectable(false),
                                         );
                                         if !item.details.is_empty() {
-                                            ui.label(
-                                                egui::RichText::new(&item.details)
-                                                    .color(text_muted)
-                                                    .size(10.5),
+                                            ui.add(
+                                                egui::Label::new(
+                                                    egui::RichText::new(&item.details)
+                                                        .color(text_muted)
+                                                        .size(10.5),
+                                                )
+                                                .selectable(false),
                                             );
                                         }
                                     });
@@ -375,22 +400,31 @@ impl eframe::App for ClipboardApp {
             ui.separator();
             ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("↵ Kopyala")
-                        .color(accent_color)
-                        .size(10.5),
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new("↵ Kopyala")
+                            .color(accent_color)
+                            .size(10.5),
+                    )
+                    .selectable(false),
                 );
-                ui.label(egui::RichText::new("·").color(text_muted).size(10.5));
-                ui.label(
-                    egui::RichText::new("↑↓ Gezin")
-                        .color(text_muted)
-                        .size(10.5),
+                ui.add(egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5)).selectable(false));
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new("↑↓ Gezin")
+                            .color(text_muted)
+                            .size(10.5),
+                    )
+                    .selectable(false),
                 );
-                ui.label(egui::RichText::new("·").color(text_muted).size(10.5));
-                ui.label(
-                    egui::RichText::new("Esc Kapat")
-                        .color(text_muted)
-                        .size(10.5),
+                ui.add(egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5)).selectable(false));
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new("Esc Kapat")
+                            .color(text_muted)
+                            .size(10.5),
+                    )
+                    .selectable(false),
                 );
             });
         });
@@ -562,6 +596,38 @@ pub fn copy_clip_item(item: &ClipItem) {
     }
 }
 
+fn setup_custom_fonts(ctx: &egui::Context) {
+    let font_candidates = [
+        "/home/mehmetcan/.fonts/0xProtoNerdFont-Regular.ttf",
+        "/home/mehmetcan/.local/share/fonts/0/0xProtoNerdFont_Regular.ttf",
+    ];
+
+    for path in font_candidates {
+        if let Ok(font_data) = std::fs::read(path) {
+            let mut fonts = egui::FontDefinitions::default();
+            fonts.font_data.insert(
+                "0xProtoNerdFont".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_owned(font_data)),
+            );
+
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .insert(0, "0xProtoNerdFont".to_owned());
+
+            fonts
+                .families
+                .entry(egui::FontFamily::Monospace)
+                .or_default()
+                .insert(0, "0xProtoNerdFont".to_owned());
+
+            ctx.set_fonts(fonts);
+            break;
+        }
+    }
+}
+
 pub fn open_clipboard_menu() {
     let items = fetch_clipboard_history();
     let palette = load_current_palette();
@@ -581,7 +647,10 @@ pub fn open_clipboard_menu() {
     let _ = eframe::run_native(
         "wt-clipboard",
         native_options,
-        Box::new(|_cc| Ok(Box::new(app))),
+        Box::new(|cc| {
+            setup_custom_fonts(&cc.egui_ctx);
+            Ok(Box::new(app))
+        }),
     );
 }
 
