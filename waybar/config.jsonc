@@ -19,7 +19,7 @@
         "custom/separator-right",
         "pulseaudio",
         "backlight",
-        "battery"
+        "custom/battery"
     ],
     "cpu": {
         "interval": 2,
@@ -80,9 +80,9 @@
             ]
         },
         "tooltip": false,
-        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-        "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 2%+",
-        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"
+        "on-click": "wt-rust volume mute",
+        "on-scroll-up": "wt-rust volume inc 2%",
+        "on-scroll-down": "wt-rust volume dec 2%"
     },
     "backlight": {
         "format": "{icon} {percent}%",
@@ -99,28 +99,14 @@
         "on-scroll-up": "wt-rust brightness inc",
         "on-scroll-down": "wt-rust brightness dec"
     },
-    "battery": {
-        "states": {
-            "good": 80,
-            "warning": 30,
-            "critical": 15
-        },
-        "format": "{icon} {capacity}%",
-        "format-charging": "󰂄 {capacity}%",
-        "format-plugged": "󰚥 {capacity}%",
-        "format-icons": [
-            "󰂎",
-            "󰁺",
-            "󰁻",
-            "󰁼",
-            "󰁽",
-            "󰁾",
-            "󰁿",
-            "󰂀",
-            "󰂁",
-            "󰂂",
-            "󰁹"
-        ],
-        "tooltip": false
+    "custom/battery": {
+        "interval": 10,
+        "return-type": "json",
+        "format": "{}",
+        "exec": "wt-rust power status",
+        "signal": 9,
+        "on-click": "wt-rust power next",
+        "on-scroll-up": "wt-rust power next",
+        "on-scroll-down": "wt-rust power prev"
     }
 }

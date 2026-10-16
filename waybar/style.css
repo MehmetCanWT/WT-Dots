@@ -54,7 +54,8 @@ window#waybar {
 #custom-separator-right,
 #pulseaudio,
 #backlight,
-#battery {
+#battery,
+#custom-battery {
     background-color: transparent;
     color: @text-color;
     margin: 0px;
@@ -131,16 +132,27 @@ window#waybar {
     padding: 0px 10px;
 }
 
-#battery {
+#battery,
+#custom-battery {
     padding: 0px 10px;
 }
 
-#battery.warning {
+#battery.warning,
+#custom-battery.status-warning {
     color: @warning-color;
 }
 
-#battery.critical {
+#battery.critical,
+#custom-battery.status-critical {
     color: @critical-color;
+}
+
+#custom-battery.profile-performance {
+    color: @accent-color;
+}
+
+#custom-battery.profile-power-saver {
+    color: #a6da95;
 }
 
 #temperature.warning {

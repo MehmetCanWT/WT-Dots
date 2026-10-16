@@ -1,4 +1,6 @@
+mod audio;
 mod keybinds;
+mod power;
 mod theme;
 mod wallpaper;
 mod waybar;
@@ -8,7 +10,7 @@ use std::env;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: wt-rust <gpu|workspaces|brightness|wallpaper|theme|keybinds>");
+        eprintln!("Usage: wt-rust <gpu|workspaces|brightness|wallpaper|theme|keybinds|volume|power>");
         return;
     }
 
@@ -18,7 +20,9 @@ fn main() {
         "brightness" => waybar::handle_brightness(args.get(2).map(|s| s.as_str())),
         "wallpaper" => wallpaper::handle_wallpaper(&args[2..]),
         "theme" => theme::handle_theme(&args[2..]),
-        "keybinds" => keybinds::sync_keybinds(),
+        "keybinds" => keybinds::handle_keybinds(&args[2..]),
+        "volume" => audio::handle_volume(&args[2..]),
+        "power" => power::handle_power(&args[2..]),
         _ => eprintln!("Unknown command: {}", args[1]),
     }
 }

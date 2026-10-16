@@ -77,3 +77,42 @@ pub fn sync_keybinds() {
 
     println!("Keybinds synchronized with KDE Plasma 6.");
 }
+
+pub fn watch_keybinds() {
+    let home = match env::var_os("HOME") {
+        Some(h) => PathBuf::from(h),
+        None => return,
+    };
+
+    let conf_path = home.join(".config/keybinds.conf");
+    println!("Watching {:?} for changes...", conf_path);
+
+    // Initial sync
+    sync_keybinds();
+
+    let mut last_mtime = fs::metadata(&conf_path)
+        .and_then(|m| m.modified())
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        if let Ok(meta) = fs::metadata(&conf_path) {
+            if let Ok(mtime) = meta.modified() {
+                if mtime > last_mtime {
+                    last_mtime = mtime;
+                    println!("Changes detected in keybinds.conf. Re-syncing...");
+                    sync_keybinds();
+                }
+            }
+        }
+    }
+}
+
+pub fn handle_keybinds(args: &[String]) {
+    if args.first().map(|s| s.as_str()) == Some("watch") {
+        watch_keybinds();
+    } else {
+        sync_keybinds();
+    }
+}
+
