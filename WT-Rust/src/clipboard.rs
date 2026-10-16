@@ -289,6 +289,7 @@ impl eframe::App for ClipboardApp {
                             .inner_margin(egui::Margin::symmetric(8, 6));
 
                         let response = row_frame.show(ui, |ui| {
+                            ui.set_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 if item.is_image {
                                     if let Some(texture) = self.textures.get(&item.id) {
@@ -312,68 +313,68 @@ impl eframe::App for ClipboardApp {
                                         );
                                     }
 
-                                        let text_w = (ui.available_width() - 8.0).max(80.0);
-                                        ui.vertical(|ui| {
-                                            ui.set_max_width(text_w);
-                                            ui.add(
-                                                egui::Label::new(
-                                                    egui::RichText::new(&item.display_text)
-                                                        .color(accent_color)
-                                                        .strong()
-                                                        .size(13.0),
-                                                )
-                                                .selectable(false)
-                                                .wrap_mode(egui::TextWrapMode::Wrap),
-                                            );
+                                    let text_w = (ui.available_width() - 4.0).max(40.0);
+                                    ui.vertical(|ui| {
+                                        ui.set_width(text_w);
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.display_text)
+                                                    .color(accent_color)
+                                                    .strong()
+                                                    .size(13.0),
+                                            )
+                                            .selectable(false)
+                                            .wrap_mode(egui::TextWrapMode::Wrap),
+                                        );
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.details)
+                                                    .color(text_muted)
+                                                    .size(11.0),
+                                            )
+                                            .selectable(false)
+                                            .wrap_mode(egui::TextWrapMode::Truncate),
+                                        );
+                                    });
+                                } else {
+                                    ui.add(
+                                        egui::Label::new(
+                                            egui::RichText::new("󰅍")
+                                                .color(if is_selected {
+                                                    accent_color
+                                                } else {
+                                                    text_muted
+                                                })
+                                                .size(15.0),
+                                        )
+                                        .selectable(false),
+                                    );
+
+                                    let text_w = (ui.available_width() - 4.0).max(40.0);
+                                    ui.vertical(|ui| {
+                                        ui.set_width(text_w);
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&item.display_text)
+                                                    .color(text_main)
+                                                    .font(egui::FontId::monospace(12.5)),
+                                            )
+                                            .selectable(false)
+                                            .wrap_mode(egui::TextWrapMode::Wrap),
+                                        );
+                                        if !item.details.is_empty() {
                                             ui.add(
                                                 egui::Label::new(
                                                     egui::RichText::new(&item.details)
                                                         .color(text_muted)
-                                                        .size(11.0),
+                                                        .size(10.5),
                                                 )
                                                 .selectable(false)
                                                 .wrap_mode(egui::TextWrapMode::Truncate),
                                             );
-                                        });
-                                    } else {
-                                        ui.add(
-                                            egui::Label::new(
-                                                egui::RichText::new("󰅍")
-                                                    .color(if is_selected {
-                                                        accent_color
-                                                    } else {
-                                                        text_muted
-                                                    })
-                                                    .size(15.0),
-                                            )
-                                            .selectable(false),
-                                        );
-
-                                        let text_w = (ui.available_width() - 8.0).max(80.0);
-                                        ui.vertical(|ui| {
-                                            ui.set_max_width(text_w);
-                                            ui.add(
-                                                egui::Label::new(
-                                                    egui::RichText::new(&item.display_text)
-                                                        .color(text_main)
-                                                        .font(egui::FontId::monospace(12.5)),
-                                                )
-                                                .selectable(false)
-                                                .wrap_mode(egui::TextWrapMode::Wrap),
-                                            );
-                                            if !item.details.is_empty() {
-                                                ui.add(
-                                                    egui::Label::new(
-                                                        egui::RichText::new(&item.details)
-                                                            .color(text_muted)
-                                                            .size(10.5),
-                                                    )
-                                                    .selectable(false)
-                                                    .wrap_mode(egui::TextWrapMode::Truncate),
-                                                );
-                                            }
-                                        });
-                                    }
+                                        }
+                                    });
+                                }
                             });
                         });
 
@@ -512,7 +513,7 @@ pub fn parse_cliphist_list(output: &str) -> Vec<ClipItem> {
                 details,
             });
         } else {
-            let preview = format_preview_max_lines(content, 34, 2);
+            let preview = format_preview_max_lines(content, 42, 2);
             let char_count = content.chars().count();
             let details = if char_count > 60 {
                 format!("{} karakter", char_count)
@@ -576,7 +577,7 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
                 }
                 let mut parts = trimmed.split('|');
                 let content = parts.next().unwrap_or("").replace(['\n', '\r', '\t'], " ");
-                let preview = format_preview_max_lines(&content, 34, 2);
+                let preview = format_preview_max_lines(&content, 42, 2);
                 let len_str = parts.next().unwrap_or("");
                 let details = if let Ok(l) = len_str.parse::<usize>() {
                     if l > 60 {
@@ -685,7 +686,74 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     }
 }
 
+fn position_window_at_cursor() {
+    thread::spawn(|| {
+        let script = r#"
+var found = false;
+var list = workspace.windowList();
+for (var i = 0; i < list.length; i++) {
+    var w = list[i];
+    if (w.caption === "wt-clipboard" || w.resourceClass === "wt-clipboard") {
+        var cx = workspace.cursorPos.x;
+        var cy = workspace.cursorPos.y;
+        var targetX = Math.max(10, Math.min(cx - 20, workspace.workspaceWidth - w.width - 20));
+        var targetY = Math.max(10, Math.min(cy - 20, workspace.workspaceHeight - w.height - 20));
+        w.frameGeometry = { x: targetX, y: targetY, width: w.width, height: w.height };
+        found = true;
+        break;
+    }
+}
+if (!found) {
+    var conn = function(client) {
+        if (client.caption === "wt-clipboard" || client.resourceClass === "wt-clipboard") {
+            var cx = workspace.cursorPos.x;
+            var cy = workspace.cursorPos.y;
+            var targetX = Math.max(10, Math.min(cx - 20, workspace.workspaceWidth - client.width - 20));
+            var targetY = Math.max(10, Math.min(cy - 20, workspace.workspaceHeight - client.height - 20));
+            client.frameGeometry = { x: targetX, y: targetY, width: client.width, height: client.height };
+            workspace.windowAdded.disconnect(conn);
+        }
+    };
+    workspace.windowAdded.connect(conn);
+}
+"#;
+        let script_path = "/tmp/wt_clip_pos.js";
+        if std::fs::write(script_path, script).is_err() {
+            return;
+        }
+
+        let load_out = Command::new("qdbus-qt6")
+            .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", script_path])
+            .output();
+
+        let script_id = if let Ok(res) = load_out {
+            let id = String::from_utf8_lossy(&res.stdout).trim().to_string();
+            let _ = Command::new("qdbus-qt6")
+                .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.start"])
+                .output();
+            if !id.is_empty() && id != "0" {
+                Some(id)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Give KWin enough time to map the window and execute windowAdded if not immediate
+        thread::sleep(std::time::Duration::from_millis(600));
+
+        if let Some(id) = script_id {
+            let _ = Command::new("qdbus-qt6")
+                .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", &id])
+                .output();
+        }
+        let _ = std::fs::remove_file(script_path);
+    });
+}
+
 pub fn open_clipboard_menu() {
+    position_window_at_cursor();
     let items = fetch_clipboard_history();
     let palette = load_current_palette();
 
