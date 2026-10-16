@@ -137,22 +137,28 @@ window#waybar {
     padding: 0px 10px;
 }
 
+#custom-battery.profile-performance {
+    color: #f5a97f;
+}
+
+#custom-battery.profile-power-saver {
+    color: #a6da95;
+}
+
+#custom-battery.profile-balanced {
+    color: @text-color;
+}
+
 #battery.warning,
+#custom-battery.warning,
 #custom-battery.status-warning {
     color: @warning-color;
 }
 
 #battery.critical,
+#custom-battery.critical,
 #custom-battery.status-critical {
     color: @critical-color;
-}
-
-#custom-battery.profile-performance {
-    color: @accent-color;
-}
-
-#custom-battery.profile-power-saver {
-    color: #a6da95;
 }
 
 #temperature.warning {

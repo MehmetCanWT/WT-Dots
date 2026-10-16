@@ -12,6 +12,32 @@ struct PowerOutput {
 }
 
 fn get_active_profile() -> String {
+    // 1. Try KDE Solid PowerManagement on user session bus
+    let output = Command::new("busctl")
+        .args([
+            "--user",
+            "call",
+            "org.kde.Solid.PowerManagement",
+            "/org/kde/Solid/PowerManagement/Actions/PowerProfile",
+            "org.kde.Solid.PowerManagement.Actions.PowerProfile",
+            "currentProfile",
+        ])
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let text = String::from_utf8_lossy(&out.stdout);
+            if let Some(start) = text.find('"') {
+                if let Some(end) = text.rfind('"') {
+                    if end > start {
+                        return text[start + 1..end].to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fallback: net.hadess.PowerProfiles on system bus
     let output = Command::new("busctl")
         .args([
             "get-property",
@@ -24,7 +50,6 @@ fn get_active_profile() -> String {
 
     if let Ok(out) = output {
         let text = String::from_utf8_lossy(&out.stdout);
-        // Output format: s "balanced"
         if let Some(start) = text.find('"') {
             if let Some(end) = text.rfind('"') {
                 if end > start {
@@ -33,11 +58,41 @@ fn get_active_profile() -> String {
             }
         }
     }
+
     "balanced".to_string()
 }
 
 fn set_active_profile(profile: &str) -> bool {
-    let status = Command::new("busctl")
+    let norm = match profile {
+        "performance" | "perf" => "performance",
+        "power-saver" | "powersave" | "saver" | "eco" => "power-saver",
+        _ => "balanced",
+    };
+
+    let mut ok = false;
+
+    // 1. Set via KDE Solid PowerManagement (user session bus)
+    let status_kde = Command::new("busctl")
+        .args([
+            "--user",
+            "call",
+            "org.kde.Solid.PowerManagement",
+            "/org/kde/Solid/PowerManagement/Actions/PowerProfile",
+            "org.kde.Solid.PowerManagement.Actions.PowerProfile",
+            "setProfile",
+            "s",
+            norm,
+        ])
+        .status();
+
+    if let Ok(s) = status_kde {
+        if s.success() {
+            ok = true;
+        }
+    }
+
+    // 2. Set via net.hadess.PowerProfiles (system bus)
+    let status_hadess = Command::new("busctl")
         .args([
             "set-property",
             "net.hadess.PowerProfiles",
@@ -45,24 +100,27 @@ fn set_active_profile(profile: &str) -> bool {
             "net.hadess.PowerProfiles",
             "ActiveProfile",
             "s",
-            profile,
+            norm,
         ])
         .status();
 
-    if let Ok(s) = status {
+    if let Ok(s) = status_hadess {
         if s.success() {
-            // Signal Waybar to refresh the power/battery module instantly
-            let _ = Command::new("pkill").args(["-RTMIN+9", "waybar"]).status();
-            return true;
+            ok = true;
         }
     }
-    false
+
+    // Signal Waybar to refresh the custom/battery module immediately
+    let _ = Command::new("pkill").args(["-RTMIN+9", "waybar"]).status();
+
+    ok
 }
 
-fn get_battery_info() -> (u32, String) {
+fn get_battery_info() -> (u32, String, bool) {
     let pwr_dir = Path::new("/sys/class/power_supply");
     let mut capacity = 100u32;
     let mut status = "Full".to_string();
+    let mut ac_online = false;
 
     if let Ok(entries) = fs::read_dir(pwr_dir) {
         for entry in entries.flatten() {
@@ -75,30 +133,45 @@ fn get_battery_info() -> (u32, String) {
                 if let Ok(s_str) = fs::read_to_string(path.join("status")) {
                     status = s_str.trim().to_string();
                 }
-                break;
+            } else if name.starts_with("AC") || name.starts_with("ADP") {
+                if let Ok(o_str) = fs::read_to_string(path.join("online")) {
+                    ac_online = o_str.trim() == "1";
+                }
             }
         }
     }
 
-    (capacity, status)
+    (capacity, status, ac_online)
 }
 
 fn get_battery_icon(capacity: u32, is_charging: bool) -> &'static str {
     if is_charging {
-        return "󰂄";
+        return match capacity {
+            95..=100 => "󰂅", // charging 100%
+            85..=94 => "󰂋",  // charging 90%
+            75..=84 => "󰂊",  // charging 80%
+            65..=74 => "󰢞",  // charging 70%
+            55..=64 => "󰂉",  // charging 60%
+            45..=54 => "󰢝",  // charging 50%
+            35..=44 => "󰂈",  // charging 40%
+            25..=34 => "󰂇",  // charging 30%
+            15..=24 => "󰂆",  // charging 20%
+            _ => "󰢜",        // charging 10%
+        };
     }
 
     match capacity {
-        90..=100 => "󰁹",
-        80..=89 => "󰂂",
-        70..=79 => "󰂁",
-        60..=69 => "󰂀",
-        50..=59 => "󰁿",
-        40..=49 => "󰁾",
-        30..=39 => "󰁽",
-        20..=29 => "󰁼",
-        10..=19 => "󰁻",
-        _ => "󰂎",
+        95..=100 => "󰁹", // 100%
+        85..=94 => "󰂂",  // 90%
+        75..=84 => "󰂁",  // 80%
+        65..=74 => "󰂀",  // 70%
+        55..=64 => "󰁿",  // 60%
+        45..=54 => "󰁾",  // 50%
+        35..=44 => "󰁽",  // 40%
+        25..=34 => "󰁼",  // 30%
+        15..=24 => "󰁻",  // 20%
+        5..=14 => "󰁺",   // 10%
+        _ => "󰂎",        // 0% / empty
     }
 }
 
@@ -109,6 +182,7 @@ pub fn handle_power(args: &[String]) {
         "next" => {
             let cur = get_active_profile();
             let next_profile = match cur.as_str() {
+                "power-saver" => "balanced",
                 "balanced" => "performance",
                 "performance" => "power-saver",
                 _ => "balanced",
@@ -119,8 +193,9 @@ pub fn handle_power(args: &[String]) {
         "prev" => {
             let cur = get_active_profile();
             let prev_profile = match cur.as_str() {
-                "balanced" => "power-saver",
                 "power-saver" => "performance",
+                "performance" => "balanced",
+                "balanced" => "power-saver",
                 _ => "balanced",
             };
             set_active_profile(prev_profile);
@@ -138,7 +213,7 @@ pub fn handle_power(args: &[String]) {
             println!("{}", get_active_profile());
         }
         "status" => {
-            let (capacity, bat_status) = get_battery_info();
+            let (capacity, bat_status, ac_online) = get_battery_info();
             let is_charging = bat_status.eq_ignore_ascii_case("charging");
             let profile = get_active_profile();
 
@@ -151,19 +226,31 @@ pub fn handle_power(args: &[String]) {
 
             let bat_icon = get_battery_icon(capacity, is_charging);
 
-            // Visible battery indicator clearly communicating the active power plan
-            let text = format!("{}  {} {}%", plan_icon, bat_icon, capacity);
+            let text = format!("{} {} {}%", plan_icon, bat_icon, capacity);
 
+            let ac_text = if ac_online { " (AC Bağlı)" } else { "" };
             let tooltip = format!(
-                "Batarya: %{} ({})\nGüç Planı: {} ({})\n\nTıklayarak planı değiştir",
-                capacity, bat_status, plan_name_tr, profile
+                "Batarya: %{} ({}{})\nGüç Planı: {} ({})\n\nSol Tık / Kaydırma: Güç planını değiştir",
+                capacity, bat_status, ac_text, plan_name_tr, profile
             );
 
-            let class = format!(
-                "battery profile-{} status-{}",
-                profile,
-                bat_status.to_ascii_lowercase()
-            );
+            let p_class = match profile.as_str() {
+                "performance" => "profile-performance",
+                "power-saver" => "profile-power-saver",
+                _ => "profile-balanced",
+            };
+
+            let mut class_list = vec!["battery", "custom-battery", p_class];
+            if is_charging {
+                class_list.push("charging");
+            }
+            if capacity <= 15 {
+                class_list.push("critical");
+            } else if capacity <= 30 {
+                class_list.push("warning");
+            }
+
+            let class = class_list.join(" ");
 
             let resp = PowerOutput {
                 text,
