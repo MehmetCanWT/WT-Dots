@@ -4,7 +4,8 @@ PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/waybar
+Environment="PATH=%h/.local/bin:%h/.cargo/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/env waybar
 Restart=always
 RestartSec=2
 

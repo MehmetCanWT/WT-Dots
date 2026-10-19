@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::{self, File};
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize)]
@@ -15,34 +14,29 @@ pub struct WaybarAgyOutput {
     pub class: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize)]
 pub struct QuotaResponse {
     pub command: Option<QuotaCommand>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize)]
 pub struct QuotaCommand {
-    pub name: Option<String>,
     pub data: Option<QuotaData>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize)]
 pub struct QuotaData {
     pub groups: Option<Vec<QuotaGroup>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize)]
 pub struct QuotaGroup {
     pub name: String,
-    pub description: Option<String>,
     pub buckets: Option<Vec<QuotaBucket>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize)]
 pub struct QuotaBucket {
-    pub id: Option<String>,
-    pub name: Option<String>,
-    pub description: Option<String>,
     pub window: Option<String>,
     pub remaining_fraction: Option<f64>,
     pub reset_time: Option<String>,
@@ -59,6 +53,15 @@ fn get_app_dir() -> PathBuf {
 }
 
 pub fn is_agy_running() -> Option<u32> {
+    let pid_cache = Path::new("/tmp/wt-rust-agy.pid");
+    if let Ok(cached) = fs::read_to_string(pid_cache)
+        && let Ok(pid) = cached.trim().parse::<u32>()
+        && let Ok(comm) = fs::read_to_string(format!("/proc/{pid}/comm"))
+        && comm.trim() == "agy"
+    {
+        return Some(pid);
+    }
+
     let proc_dir = fs::read_dir("/proc").ok()?;
     for entry in proc_dir.flatten() {
         let name = entry.file_name();
@@ -68,10 +71,12 @@ pub fn is_agy_running() -> Option<u32> {
             if let Ok(comm) = fs::read_to_string(comm_path)
                 && comm.trim() == "agy"
             {
+                let _ = fs::write(pid_cache, pid.to_string());
                 return Some(pid);
             }
         }
     }
+    let _ = fs::remove_file(pid_cache);
     None
 }
 
@@ -175,14 +180,22 @@ fn format_reset_time_tr(iso_time: Option<&str>, now_secs: u64) -> String {
 
 fn get_active_conversation_id(app_dir: &Path) -> Option<String> {
     let history_path = app_dir.join("history.jsonl");
-    if let Ok(content) = fs::read_to_string(&history_path) {
-        for line in content.lines().rev() {
-            let line = line.trim();
-            if !line.is_empty()
-                && let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
-                && let Some(conv_id) = v.get("conversationId").and_then(|c| c.as_str())
-            {
-                return Some(conv_id.to_string());
+    if let Ok(mut file) = File::open(&history_path) {
+        let len = file.metadata().map(|m| m.len()).unwrap_or(0);
+        if len > 16384 {
+            let _ = file.seek(SeekFrom::End(-16384));
+        }
+        let mut buf = Vec::with_capacity(16384);
+        if file.read_to_end(&mut buf).is_ok() {
+            let content = String::from_utf8_lossy(&buf);
+            for line in content.lines().rev() {
+                let line = line.trim();
+                if !line.is_empty()
+                    && let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
+                    && let Some(conv_id) = v.get("conversationId").and_then(|c| c.as_str())
+                {
+                    return Some(conv_id.to_string());
+                }
             }
         }
     }
@@ -220,80 +233,97 @@ fn read_session_tokens(app_dir: &Path, conv_id: &str) -> SessionTokens {
         .join("logs")
         .join("transcript.jsonl");
 
-    if let Ok(content) = fs::read_to_string(transcript_path) {
-        for line in content.lines() {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
+    let Ok(mut file) = File::open(&transcript_path) else {
+        return stats;
+    };
+    let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let cache_path = Path::new("/tmp/wt-rust-agy-tokens.cache");
+    let mut start_offset = 0u64;
+
+    if let Ok(cached) = fs::read_to_string(cache_path) {
+        let mut parts = cached.split_whitespace();
+        if let (Some(c_id), Some(c_off), Some(c_in), Some(c_out), Some(c_ca)) = (
+            parts.next(),
+            parts.next().and_then(|s| s.parse::<u64>().ok()),
+            parts.next().and_then(|s| s.parse::<u64>().ok()),
+            parts.next().and_then(|s| s.parse::<u64>().ok()),
+            parts.next().and_then(|s| s.parse::<u64>().ok()),
+        ) && c_id == conv_id
+            && c_off <= file_len
+        {
+            stats.input = c_in;
+            stats.output = c_out;
+            stats.cache = c_ca;
+            if c_off == file_len {
+                return stats;
             }
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                if let Some(in_tok) = v.get("input_tokens").and_then(|t| t.as_u64()) {
-                    stats.input += in_tok;
-                }
-                if let Some(out_tok) = v.get("output_tokens").and_then(|t| t.as_u64()) {
-                    stats.output += out_tok;
-                }
-                if let Some(cache_tok) = v.get("cache_read_tokens").and_then(|t| t.as_u64()) {
-                    stats.cache += cache_tok;
-                }
+            start_offset = c_off;
+        }
+    }
+
+    if start_offset > 0 && file.seek(SeekFrom::Start(start_offset)).is_err() {
+        stats = SessionTokens {
+            input: 0,
+            output: 0,
+            cache: 0,
+        };
+        let _ = file.seek(SeekFrom::Start(0));
+    }
+
+    let reader = BufReader::new(file);
+    for line in reader.lines().map_while(Result::ok) {
+        let line = line.trim();
+        if line.is_empty() || !line.contains("_tokens\"") {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            if let Some(in_tok) = v.get("input_tokens").and_then(|t| t.as_u64()) {
+                stats.input += in_tok;
+            }
+            if let Some(out_tok) = v.get("output_tokens").and_then(|t| t.as_u64()) {
+                stats.output += out_tok;
+            }
+            if let Some(cache_tok) = v.get("cache_read_tokens").and_then(|t| t.as_u64()) {
+                stats.cache += cache_tok;
             }
         }
     }
+
+    let _ = fs::write(
+        cache_path,
+        format!(
+            "{} {} {} {} {}",
+            conv_id, file_len, stats.input, stats.output, stats.cache
+        ),
+    );
 
     stats
 }
 
-fn load_quota_summary() -> Option<QuotaResponse> {
-    let cache_path = Path::new("/tmp/wt-rust-agy-quota.json");
-    let lock_path = Path::new("/tmp/wt-rust-agy-quota.lock");
-
-    let needs_refresh = if let Ok(meta) = fs::metadata(cache_path) {
-        if let Ok(modified) = meta.modified() {
-            modified.elapsed().unwrap_or(Duration::from_secs(999)) > Duration::from_secs(60)
-        } else {
-            true
-        }
-    } else {
-        true
-    };
-
-    // If cache is stale or missing, trigger background refresh
-    if needs_refresh {
-        let lock_stale = if let Ok(lmeta) = fs::metadata(lock_path) {
-            lmeta.modified().ok().and_then(|m| m.elapsed().ok()).unwrap_or(Duration::from_secs(999)) > Duration::from_secs(30)
-        } else {
-            true
-        };
-
-        if lock_stale {
-            let _ = fs::write(lock_path, "1");
-            thread::spawn(|| {
-                if let Ok(output) = Command::new("agy")
-                    .args(["-p", "/quota", "--output-format", "json"])
-                    .output()
-                    && output.status.success()
-                    && !output.stdout.is_empty()
-                {
-                    let _ = fs::write("/tmp/wt-rust-agy-quota.json", &output.stdout);
-                }
-                let _ = fs::remove_file("/tmp/wt-rust-agy-quota.lock");
-            });
-        }
+fn refresh_quota_cache() {
+    if let Ok(output) = Command::new("agy")
+        .args(["-p", "/quota", "--output-format", "json"])
+        .output()
+        && output.status.success()
+        && !output.stdout.is_empty()
+    {
+        let _ = fs::write("/tmp/wt-rust-agy-quota.json", &output.stdout);
     }
-
-    if let Ok(mut f) = File::open(cache_path) {
-        let mut buf = String::new();
-        if f.read_to_string(&mut buf).is_ok()
-            && let Ok(parsed) = serde_json::from_str::<QuotaResponse>(&buf)
-        {
-            return Some(parsed);
-        }
-    }
-
-    None
+    let _ = fs::remove_file("/tmp/wt-rust-agy-quota.lock");
 }
 
-pub fn handle_agy(_args: &[String]) {
+fn load_quota_summary() -> Option<QuotaResponse> {
+    let cache_path = Path::new("/tmp/wt-rust-agy-quota.json");
+    fs::read_to_string(cache_path)
+        .ok()
+        .and_then(|buf| serde_json::from_str::<QuotaResponse>(&buf).ok())
+}
+
+pub fn handle_agy(args: &[String]) {
+    if args.first().map(|s| s.as_str()) == Some("refresh") {
+        refresh_quota_cache();
+        return;
+    }
     let agy_pid = is_agy_running();
     let app_dir = get_app_dir();
     let now_secs = SystemTime::now()
@@ -338,7 +368,9 @@ pub fn handle_agy(_args: &[String]) {
     let mut gemini_5h_str = "Kullanılabilir".to_string();
     let mut gemini_weekly_str = "Kullanılabilir".to_string();
 
-    if let Some(grp) = gemini_grp && let Some(ref buckets) = grp.buckets {
+    if let Some(grp) = gemini_grp
+        && let Some(ref buckets) = grp.buckets
+    {
         for b in buckets {
             let win = b.window.as_deref().unwrap_or("");
             let frac = b.remaining_fraction.unwrap_or(1.0);
@@ -357,7 +389,9 @@ pub fn handle_agy(_args: &[String]) {
     let argon_grp = groups.iter().find(|g| g.name.contains("Argon"));
     let mut argon_weekly_str = "Kullanılabilir".to_string();
 
-    if let Some(grp) = argon_grp && let Some(ref buckets) = grp.buckets {
+    if let Some(grp) = argon_grp
+        && let Some(ref buckets) = grp.buckets
+    {
         for b in buckets {
             let frac = b.remaining_fraction.unwrap_or(1.0);
             let pct = (frac * 100.0).round() as u64;
@@ -372,11 +406,15 @@ pub fn handle_agy(_args: &[String]) {
     }
 
     // Group 3: Claude (Tüm Modeller Ortak Limit)
-    let claude_grp = groups.iter().find(|g| g.name.contains("Claude") || g.name.contains("3p"));
+    let claude_grp = groups
+        .iter()
+        .find(|g| g.name.contains("Claude") || g.name.contains("3p"));
     let mut claude_5h_str = "Kullanılabilir".to_string();
     let mut claude_weekly_str = "Kullanılabilir".to_string();
 
-    if let Some(grp) = claude_grp && let Some(ref buckets) = grp.buckets {
+    if let Some(grp) = claude_grp
+        && let Some(ref buckets) = grp.buckets
+    {
         for b in buckets {
             let win = b.window.as_deref().unwrap_or("");
             let frac = b.remaining_fraction.unwrap_or(0.0);
@@ -459,7 +497,10 @@ mod tests {
     fn test_clean_model_name() {
         assert_eq!(clean_model_name("Gemini 3.8 Flash (Medium)"), "3.8 Flash");
         assert_eq!(clean_model_name("Gemini 4 Argon (High)"), "4 Argon");
-        assert_eq!(clean_model_name("Claude Sonnet 3.7 (Medium)"), "Claude Sonnet 3.7");
+        assert_eq!(
+            clean_model_name("Claude Sonnet 3.7 (Medium)"),
+            "Claude Sonnet 3.7"
+        );
         assert_eq!(clean_model_name(""), "Gemini");
     }
 

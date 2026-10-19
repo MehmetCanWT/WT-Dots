@@ -111,18 +111,6 @@ pub fn default_palette() -> Palette {
     }
 }
 
-pub fn load_current_palette() -> Palette {
-    if let Ok(home) = env::var("HOME") {
-        let cache_path = PathBuf::from(home).join(".cache/wt-rust/palette.json");
-        if let Ok(content) = fs::read_to_string(&cache_path)
-            && let Ok(pal) = serde_json::from_str::<Palette>(&content)
-        {
-            return pal;
-        }
-    }
-    default_palette()
-}
-
 pub fn extract_palette_from_image(img: &image::DynamicImage) -> Palette {
     let small = img.thumbnail_exact(48, 48);
     let mut hue_bins: Vec<(f32, f32, f32, usize)> = vec![(0.0, 0.0, 0.0, 0); 16];
@@ -196,6 +184,31 @@ pub fn extract_palette_from_image(img: &image::DynamicImage) -> Palette {
     }
 }
 
+pub fn qdbus_cmd() -> &'static str {
+    for (path, cmd) in [
+        ("/usr/bin/qdbus-qt6", "qdbus-qt6"),
+        ("/usr/bin/qdbus6", "qdbus6"),
+        ("/usr/bin/qdbus", "qdbus"),
+    ] {
+        if Path::new(path).exists() {
+            return cmd;
+        }
+    }
+    "qdbus-qt6"
+}
+
+pub fn wallpapers_dir(home: &Path) -> PathBuf {
+    let tr = home.join("Resimler/Wallpapers");
+    if tr.exists() {
+        return tr;
+    }
+    let en = home.join("Pictures/Wallpapers");
+    if en.exists() {
+        return en;
+    }
+    tr
+}
+
 pub fn extract_palette(path: &Path) -> Palette {
     // Fast-path: check if cached thumbnail exists first for ultra-fast decoding (<1ms)
     let home = env::var_os("HOME").map(PathBuf::from);
@@ -209,7 +222,8 @@ pub fn extract_palette(path: &Path) -> Palette {
         None => {
             let opened = image::open(path);
             if let (Ok(decoded), Some(h), Some(tp)) = (&opened, &home, &thumb_path)
-                && path.parent() == Some(&h.join("Resimler/Wallpapers"))
+                && (path.parent() == Some(&h.join("Resimler/Wallpapers"))
+                    || path.parent() == Some(&h.join("Pictures/Wallpapers")))
             {
                 if let Some(parent) = tp.parent() {
                     let _ = fs::create_dir_all(parent);
@@ -308,7 +322,7 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
     if let Some(home) = env::var_os("HOME") {
         let home_path = PathBuf::from(home);
 
-        // 1. Waybar CSS Theme (config + repository sync)
+        // 1. Waybar CSS Theme
         let waybar_theme = home_path.join(".config/waybar/theme.css");
         let theme_css = format!(
             "/* Dynamic Palette extracted by wt-rust */\n\
@@ -323,26 +337,23 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
              @define-color critical-color #e05f52;\n",
             pal.bg,
             pal.border,
-            pal.accent,
-            pal.accent,
+            pal.text_color,
+            pal.text_dim,
             pal.text_muted,
             pal.accent,
             pal.accent_secondary
         );
         let _ = fs::write(&waybar_theme, &theme_css);
-        let repo_waybar = home_path.join("Code/WT-Dots/waybar/theme.css");
-        if repo_waybar.exists() {
-            let _ = fs::write(repo_waybar, &theme_css);
-        }
 
-        // Fast-access palette cache for waybar subcommands
+        // Fast-access palette & current wallpaper cache
         let cache_dir = home_path.join(".cache/wt-rust");
         let _ = fs::create_dir_all(&cache_dir);
         if let Ok(json) = serde_json::to_string(pal) {
             let _ = fs::write(cache_dir.join("palette.json"), json);
         }
+        let _ = fs::write(cache_dir.join("current"), abs_str.as_bytes());
 
-        // 2. Rofi Theme (config + repository sync)
+        // 2. Rofi Theme
         let rofi_theme = home_path.join(".config/rofi/theme.rasi");
         let rasi_content = format!(
             "* {{\n\
@@ -430,10 +441,6 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             pal.bg, pal.accent, pal.accent
         );
         let _ = fs::write(&rofi_theme, &rasi_content);
-        let repo_rofi = home_path.join("Code/WT-Dots/rofi/theme.rasi");
-        if repo_rofi.exists() {
-            let _ = fs::write(repo_rofi, &rasi_content);
-        }
 
         // 3. GTK 3.0 & GTK 4.0 User CSS
         let gtk3_file = home_path.join(".config/gtk-3.0/gtk.css");
@@ -523,9 +530,10 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             ])
             .status();
 
+        let qdbus = qdbus_cmd();
         let (r, g, b) = pal.accent_rgb;
         let qcolor_uint: u32 = 0xFF00_0000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
-        let _ = Command::new("qdbus-qt6")
+        let _ = Command::new(qdbus)
             .args([
                 "org.kde.plasmashell.accentColor",
                 "/AccentColor",
@@ -534,14 +542,9 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             ])
             .status();
 
-        let _ = Command::new("qdbus-qt6")
+        let _ = Command::new(qdbus)
             .args(["org.kde.KWin", "/KWin", "reconfigure"])
             .status();
-
-        // 6. Record current wallpaper
-        let cache_dir = home_path.join(".cache/wt-rust");
-        let _ = fs::create_dir_all(&cache_dir);
-        let _ = fs::write(cache_dir.join("current"), abs_str.as_bytes());
     }
 
     // 7. Reload Waybar CSS seamlessly without notification

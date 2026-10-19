@@ -23,26 +23,26 @@
         "custom/battery"
     ],
     "custom/cpu": {
-        "interval": 2,
+        "interval": 3,
         "exec": "wt-rust sysinfo",
         "return-type": "json",
         "format": "{}"
     },
     "custom/gpu": {
-        "interval": 2,
+        "interval": 5,
         "exec": "wt-rust gpu",
         "return-type": "json",
         "format": "{}",
         "tooltip": false
     },
     "custom/memory": {
-        "interval": 2,
+        "interval": 4,
         "exec": "wt-rust sysinfo memory",
         "return-type": "json",
         "format": "{}"
     },
     "custom/workspaces": {
-        "interval": 1,
+        "interval": 2,
         "return-type": "json",
         "format": "{}",
         "exec": "wt-rust workspaces",

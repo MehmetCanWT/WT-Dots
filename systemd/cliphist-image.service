@@ -4,7 +4,8 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/wl-paste --type image --watch /usr/bin/cliphist store
+Environment="PATH=%h/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/env wl-paste --type image --watch cliphist store
 Restart=always
 RestartSec=2
 

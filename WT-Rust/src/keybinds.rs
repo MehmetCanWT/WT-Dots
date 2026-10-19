@@ -18,9 +18,12 @@ pub fn normalize_key(raw: &str) -> String {
             let trimmed = p.trim();
             if trimmed.eq_ignore_ascii_case("enter") || trimmed.eq_ignore_ascii_case("return") {
                 "Return".to_string()
-            } else if trimmed.eq_ignore_ascii_case("meta") || trimmed.eq_ignore_ascii_case("super") {
+            } else if trimmed.eq_ignore_ascii_case("meta") || trimmed.eq_ignore_ascii_case("super")
+            {
                 "Meta".to_string()
-            } else if trimmed.eq_ignore_ascii_case("ctrl") || trimmed.eq_ignore_ascii_case("control") {
+            } else if trimmed.eq_ignore_ascii_case("ctrl")
+                || trimmed.eq_ignore_ascii_case("control")
+            {
                 "Ctrl".to_string()
             } else if trimmed.eq_ignore_ascii_case("alt") {
                 "Alt".to_string()
@@ -151,9 +154,10 @@ pub fn sync_keybinds() {
     let wtdots_desktop = apps_dir.join("wtdots.desktop");
     let _ = fs::write(&wtdots_desktop, desktop_content);
 
-    // Clean up any legacy corrupted/manual entries under [services][wtdots.desktop]
+    // Clean up only legacy corrupted 3-tuple entries under [services][wtdots.desktop]
+    // while preserving valid KDE System Settings GUI shortcut overrides (e.g. Terminal=Meta+O)
     for act in &actions {
-        let _ = Command::new("kwriteconfig6")
+        if let Ok(out) = Command::new("kreadconfig6")
             .args([
                 "--file",
                 "kglobalshortcutsrc",
@@ -163,9 +167,26 @@ pub fn sync_keybinds() {
                 "wtdots.desktop",
                 "--key",
                 &act.id,
-                "--delete",
             ])
-            .status();
+            .output()
+        {
+            let val = String::from_utf8_lossy(&out.stdout);
+            if val.contains(',') {
+                let _ = Command::new("kwriteconfig6")
+                    .args([
+                        "--file",
+                        "kglobalshortcutsrc",
+                        "--group",
+                        "services",
+                        "--group",
+                        "wtdots.desktop",
+                        "--key",
+                        &act.id,
+                        "--delete",
+                    ])
+                    .status();
+            }
+        }
     }
     let _ = Command::new("kwriteconfig6")
         .args([
@@ -248,7 +269,7 @@ pub fn sync_keybinds() {
     // Rebuild KDE system configuration cache so KSycoca discovers wtdots.desktop defaults immediately
     let _ = Command::new("kbuildsycoca6").status();
 
-    let _ = Command::new("qdbus-qt6")
+    let _ = Command::new(crate::theme::qdbus_cmd())
         .args(["org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure"])
         .status();
 
@@ -256,59 +277,28 @@ pub fn sync_keybinds() {
 }
 
 pub fn ensure_clipboard_kwin_rule() {
-    let _ = Command::new("kwriteconfig6")
-        .args([
-            "--file",
-            "kwinrulesrc",
-            "--group",
-            "1",
-            "--key",
-            "Description",
-            "WT-Clipboard",
-        ])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "placement", "UnderMouse"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "placementrule", "2"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "noborder", "true"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "noborderrule", "2"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "above", "true"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "aboverule", "2"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skiptaskbar", "true"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skiptaskbarrule", "2"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skipswitcher", "true"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "skipswitcherrule", "2"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "wmclass", "wt-clipboard"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "1", "--key", "wmclassmatch", "1"])
-        .status();
-    let _ = Command::new("kwriteconfig6")
-        .args(["--file", "kwinrulesrc", "--group", "General", "--key", "count", "1"])
-        .status();
-    let _ = Command::new("qdbus-qt6")
-        .args(["org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure"])
-        .status();
+    let rule_pairs = [
+        ("1", "Description", "WT-Clipboard"),
+        ("1", "placement", "UnderMouse"),
+        ("1", "placementrule", "2"),
+        ("1", "noborder", "true"),
+        ("1", "noborderrule", "2"),
+        ("1", "above", "true"),
+        ("1", "aboverule", "2"),
+        ("1", "skiptaskbar", "true"),
+        ("1", "skiptaskbarrule", "2"),
+        ("1", "skipswitcher", "true"),
+        ("1", "skipswitcherrule", "2"),
+        ("1", "wmclass", "wt-clipboard"),
+        ("1", "wmclassmatch", "1"),
+        ("General", "count", "1"),
+        ("General", "rules", "1"),
+    ];
+    for (group, key, val) in rule_pairs {
+        let _ = Command::new("kwriteconfig6")
+            .args(["--file", "kwinrulesrc", "--group", group, "--key", key, val])
+            .status();
+    }
 }
 
 pub fn watch_keybinds() {

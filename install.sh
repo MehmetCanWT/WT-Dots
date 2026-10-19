@@ -21,16 +21,76 @@ fi
 
 echo "==> Setting up WT-Dots from: $SCRIPT_DIR"
 
-# 1. Check prerequisites
-if ! command -v cargo >/dev/null 2>&1; then
-    echo "Error: Cargo/Rust is not installed. Please install Rust via 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh' or dnf install rust cargo." >&2
-    exit 1
+# Ensure Homebrew (Bazzite default), Cargo, and ~/.local/bin are in PATH
+mkdir -p "$HOME/.local/bin"
+for dir in "/home/linuxbrew/.linuxbrew/bin" "$HOME/.cargo/bin" "$HOME/.local/bin"; do
+    if [ -d "$dir" ] && [[ ":$PATH:" != *":$dir:"* ]]; then
+        export PATH="$dir:$PATH"
+    fi
+done
+
+# 1. Detect OS (Bazzite / Fedora Atomic vs mutable Fedora) & install missing dependencies
+IS_OSTREE=0
+if [ -f /run/ostree-booted ] || command -v rpm-ostree >/dev/null 2>&1; then
+    IS_OSTREE=1
 fi
 
-# Ensure ~/.local/bin exists and is in PATH
-mkdir -p "$HOME/.local/bin"
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    export PATH="$HOME/.local/bin:$PATH"
+install_dependencies() {
+    if [ "$IS_OSTREE" -eq 1 ]; then
+        echo "==> Detected Bazzite / Fedora Atomic (ostree) environment"
+
+        # Prefer Homebrew on Bazzite for userspace CLI tools like cliphist
+        if command -v brew >/dev/null 2>&1; then
+            if ! command -v cliphist >/dev/null 2>&1; then
+                echo "==> Installing cliphist via Homebrew..."
+                brew install cliphist || true
+            fi
+        fi
+
+        # Collect any missing host/Wayland packages for live rpm-ostree layering
+        local missing_pkgs=()
+        command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
+        command -v waybar >/dev/null 2>&1 || missing_pkgs+=("waybar")
+        command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
+        command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
+        command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
+        command -v cliphist >/dev/null 2>&1 || missing_pkgs+=("cliphist")
+
+        if [ "${#missing_pkgs[@]}" -gt 0 ]; then
+            echo "==> Installing missing system packages on Bazzite via rpm-ostree (--apply-live): ${missing_pkgs[*]}"
+            sudo rpm-ostree install --apply-live --idempotent -y "${missing_pkgs[@]}" || \
+                echo "Warning: rpm-ostree live apply had non-zero status; a reboot may be required if packages were layered."
+        fi
+    elif command -v dnf >/dev/null 2>&1; then
+        local missing_pkgs=()
+        command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
+        command -v waybar >/dev/null 2>&1 || missing_pkgs+=("waybar")
+        command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
+        command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
+        command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
+        command -v cliphist >/dev/null 2>&1 || missing_pkgs+=("cliphist")
+
+        if [ "${#missing_pkgs[@]}" -gt 0 ]; then
+            echo "==> Installing missing packages via dnf: ${missing_pkgs[*]}"
+            sudo dnf install -y "${missing_pkgs[@]}"
+        fi
+    fi
+
+    # Install Rust/Cargo via rustup in userspace if not present (ideal for Bazzite immutable root)
+    if ! command -v cargo >/dev/null 2>&1; then
+        echo "==> Cargo not found. Installing Rust toolchain via rustup..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+        export PATH="$HOME/.cargo/bin:$PATH"
+    fi
+}
+
+install_dependencies
+
+# Ensure Wallpapers directory exists (supports both Turkish and English XDG locales on Bazzite)
+if [ -d "$HOME/Pictures" ] && [ ! -d "$HOME/Resimler" ]; then
+    mkdir -p "$HOME/Pictures/Wallpapers"
+else
+    mkdir -p "$HOME/Resimler/Wallpapers"
 fi
 
 # 2. Build WT-Rust companion binary in release mode

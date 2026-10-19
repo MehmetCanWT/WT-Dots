@@ -1045,7 +1045,7 @@ for (var i = 0; i < allDesktops.length; i++) {{
         abs_str
     );
 
-    let _ = Command::new("qdbus-qt6")
+    let _ = Command::new(crate::theme::qdbus_cmd())
         .args([
             "org.kde.plasmashell",
             "/PlasmaShell",
@@ -1076,7 +1076,7 @@ pub fn select_wallpaper() {
         None => return,
     };
 
-    let wp_dir = home.join("Resimler/Wallpapers");
+    let wp_dir = crate::theme::wallpapers_dir(&home);
     if !wp_dir.exists() {
         eprintln!("Wallpapers directory not found: {:?}", wp_dir);
         return;

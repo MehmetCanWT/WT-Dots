@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 
-use crate::theme::{Palette, load_current_palette};
+use crate::theme::{Palette, get_current_palette};
 
 #[derive(Clone, Debug)]
 pub struct ClipItem {
@@ -176,12 +176,8 @@ impl eframe::App for ClipboardApp {
             // 1. Header with search input
             ui.horizontal(|ui| {
                 ui.add(
-                    egui::Label::new(
-                        egui::RichText::new("󰍉")
-                            .color(accent_color)
-                            .size(16.0),
-                    )
-                    .selectable(false),
+                    egui::Label::new(egui::RichText::new("󰍉").color(accent_color).size(16.0))
+                        .selectable(false),
                 );
 
                 let search_id = egui::IdSalt::new("clip_search_input");
@@ -245,8 +241,12 @@ impl eframe::App for ClipboardApp {
                             let thumb = dyn_img.thumbnail(120, 80);
                             let rgba = thumb.to_rgba8();
                             let size = [thumb.width() as usize, thumb.height() as usize];
-                            let color_img = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
-                            let _ = tx.send(DecodedThumb { id, image: color_img });
+                            let color_img =
+                                egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
+                            let _ = tx.send(DecodedThumb {
+                                id,
+                                image: color_img,
+                            });
                         }
                     });
                 }
@@ -258,11 +258,7 @@ impl eframe::App for ClipboardApp {
                     if self.filtered_indices.is_empty() {
                         ui.add_space(30.0);
                         ui.vertical_centered(|ui| {
-                            ui.label(
-                                egui::RichText::new("󰅍")
-                                    .color(text_muted)
-                                    .size(28.0),
-                            );
+                            ui.label(egui::RichText::new("󰅍").color(text_muted).size(28.0));
                             ui.add_space(6.0);
                             ui.label(
                                 egui::RichText::new("Eşleşen pano ögesi bulunamadı")
@@ -293,8 +289,8 @@ impl eframe::App for ClipboardApp {
                             ui.horizontal(|ui| {
                                 if item.is_image {
                                     if let Some(texture) = self.textures.get(&item.id) {
-                                        let aspect = texture.size_vec2().x
-                                            / texture.size_vec2().y.max(1.0);
+                                        let aspect =
+                                            texture.size_vec2().x / texture.size_vec2().y.max(1.0);
                                         let thumb_h = 38.0;
                                         let thumb_w = (thumb_h * aspect).clamp(24.0, 68.0);
                                         ui.add(
@@ -417,16 +413,18 @@ impl eframe::App for ClipboardApp {
                     )
                     .selectable(false),
                 );
-                ui.add(egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5)).selectable(false));
                 ui.add(
-                    egui::Label::new(
-                        egui::RichText::new("↑↓ Gezin")
-                            .color(text_muted)
-                            .size(10.5),
-                    )
-                    .selectable(false),
+                    egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5))
+                        .selectable(false),
                 );
-                ui.add(egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5)).selectable(false));
+                ui.add(
+                    egui::Label::new(egui::RichText::new("↑↓ Gezin").color(text_muted).size(10.5))
+                        .selectable(false),
+                );
+                ui.add(
+                    egui::Label::new(egui::RichText::new("·").color(text_muted).size(10.5))
+                        .selectable(false),
+                );
                 ui.add(
                     egui::Label::new(
                         egui::RichText::new("Esc Kapat")
@@ -478,8 +476,17 @@ pub fn format_preview_max_lines(raw: &str, max_chars_per_line: usize, max_lines:
         let chunk: String = remaining.chars().take(split_char_idx).collect();
         result_lines.push(chunk.trim().to_string());
 
-        let skip_chars = split_char_idx + if remaining.chars().nth(split_char_idx) == Some(' ') { 1 } else { 0 };
-        remaining = remaining.char_indices().nth(skip_chars).map(|(i, _)| &remaining[i..]).unwrap_or("");
+        let skip_chars = split_char_idx
+            + if remaining.chars().nth(split_char_idx) == Some(' ') {
+                1
+            } else {
+                0
+            };
+        remaining = remaining
+            .char_indices()
+            .nth(skip_chars)
+            .map(|(i, _)| &remaining[i..])
+            .unwrap_or("");
     }
 
     result_lines.join("\n")
@@ -560,8 +567,10 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
 
     let output = Command::new("sqlite3")
         .args([
+            "-separator",
+            "\t",
             db_path.to_str().unwrap_or(""),
-            "SELECT substr(text, 1, 100), length(text) FROM main WHERE text IS NOT NULL AND text != '' ORDER BY last_used_time DESC LIMIT 40;",
+            "SELECT length(text), replace(replace(replace(substr(text, 1, 100), char(10), ' '), char(13), ' '), char(9), ' ') FROM main WHERE text IS NOT NULL AND text != '' ORDER BY last_used_time DESC LIMIT 40;",
         ])
         .output();
 
@@ -570,34 +579,29 @@ fn fetch_klipper_sqlite_history() -> Vec<ClipItem> {
         && out.status.success()
     {
         let text = String::from_utf8_lossy(&out.stdout);
-            for (idx, line) in text.lines().enumerate() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    continue;
-                }
-                let mut parts = trimmed.split('|');
-                let content = parts.next().unwrap_or("").replace(['\n', '\r', '\t'], " ");
-                let preview = format_preview_max_lines(&content, 42, 2);
-                let len_str = parts.next().unwrap_or("");
-                let details = if let Ok(l) = len_str.parse::<usize>() {
-                    if l > 60 {
-                        format!("{} karakter", l)
-                    } else {
-                        String::new()
-                    }
-                } else {
-                    String::new()
-                };
-
-                items.push(ClipItem {
-                    raw_line: content.clone(),
-                    id: (idx + 1) as u64,
-                    is_image: false,
-                    display_text: preview,
-                    details,
-                });
+        for (idx, line) in text.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
             }
+            let Some((len_str, content)) = trimmed.split_once('\t') else {
+                continue;
+            };
+            let preview = format_preview_max_lines(content, 42, 2);
+            let details = match len_str.parse::<usize>() {
+                Ok(l) if l > 60 => format!("{} karakter", l),
+                _ => String::new(),
+            };
+
+            items.push(ClipItem {
+                raw_line: content.to_string(),
+                id: (idx + 1) as u64,
+                is_image: false,
+                display_text: preview,
+                details,
+            });
         }
+    }
 
     items
 }
@@ -624,40 +628,36 @@ pub fn decode_cliphist(raw_line: &str) -> Option<Vec<u8>> {
 }
 
 pub fn copy_clip_item(item: &ClipItem) {
-    if item.is_image {
-        if let Some(bytes) = decode_cliphist(&item.raw_line) {
-            let child = Command::new("wl-copy")
-                .args(["--type", "image/png"])
-                .stdin(Stdio::piped())
-                .spawn();
-            if let Ok(mut c) = child {
-                if let Some(mut stdin) = c.stdin.take() {
-                    let _ = stdin.write_all(&bytes);
-                }
-                let _ = c.wait();
-            }
-        }
-    } else {
-        let text_bytes = if let Some(decoded) = decode_cliphist(&item.raw_line) {
-            decoded
-        } else {
-            item.raw_line.as_bytes().to_vec()
+    let (bytes, is_png) = if item.is_image {
+        let Some(decoded) = decode_cliphist(&item.raw_line) else {
+            return;
         };
+        (decoded, true)
+    } else {
+        let data =
+            decode_cliphist(&item.raw_line).unwrap_or_else(|| item.raw_line.as_bytes().to_vec());
+        (data, false)
+    };
 
-        let child = Command::new("wl-copy").stdin(Stdio::piped()).spawn();
-        if let Ok(mut c) = child {
-            if let Some(mut stdin) = c.stdin.take() {
-                let _ = stdin.write_all(&text_bytes);
-            }
-            let _ = c.wait();
+    let mut cmd = Command::new("wl-copy");
+    if is_png {
+        cmd.args(["--type", "image/png"]);
+    }
+    if let Ok(mut c) = cmd.stdin(Stdio::piped()).spawn() {
+        if let Some(mut stdin) = c.stdin.take() {
+            let _ = stdin.write_all(&bytes);
         }
+        let _ = c.wait();
     }
 }
 
 fn setup_custom_fonts(ctx: &egui::Context) {
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return;
+    };
     let font_candidates = [
-        "/home/mehmetcan/.fonts/0xProtoNerdFont-Regular.ttf",
-        "/home/mehmetcan/.local/share/fonts/0/0xProtoNerdFont_Regular.ttf",
+        home.join(".fonts/0xProtoNerdFont-Regular.ttf"),
+        home.join(".local/share/fonts/0/0xProtoNerdFont_Regular.ttf"),
     ];
 
     for path in font_candidates {
@@ -722,13 +722,19 @@ if (!found) {
             return;
         }
 
-        let load_out = Command::new("qdbus-qt6")
-            .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", script_path])
+        let qdbus = crate::theme::qdbus_cmd();
+        let load_out = Command::new(qdbus)
+            .args([
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.loadScript",
+                script_path,
+            ])
             .output();
 
         let script_id = if let Ok(res) = load_out {
             let id = String::from_utf8_lossy(&res.stdout).trim().to_string();
-            let _ = Command::new("qdbus-qt6")
+            let _ = Command::new(qdbus)
                 .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.start"])
                 .output();
             if !id.is_empty() && id != "0" {
@@ -744,8 +750,13 @@ if (!found) {
         thread::sleep(std::time::Duration::from_millis(600));
 
         if let Some(id) = script_id {
-            let _ = Command::new("qdbus-qt6")
-                .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", &id])
+            let _ = Command::new(qdbus)
+                .args([
+                    "org.kde.KWin",
+                    "/Scripting",
+                    "org.kde.kwin.Scripting.unloadScript",
+                    &id,
+                ])
                 .output();
         }
         let _ = std::fs::remove_file(script_path);
@@ -755,7 +766,7 @@ if (!found) {
 pub fn open_clipboard_menu() {
     position_window_at_cursor();
     let items = fetch_clipboard_history();
-    let palette = load_current_palette();
+    let palette = get_current_palette();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -797,7 +808,8 @@ mod tests {
 
     #[test]
     fn test_parse_cliphist_text_and_image() {
-        let input = "489\ttest clipboard copy 12345\n488\t[[ binary data 186 KiB png 1920x1080 ]]\n";
+        let input =
+            "489\ttest clipboard copy 12345\n488\t[[ binary data 186 KiB png 1920x1080 ]]\n";
         let items = parse_cliphist_list(input);
         assert_eq!(items.len(), 2);
 
@@ -813,7 +825,8 @@ mod tests {
 
     #[test]
     fn test_filter_clipboard_search() {
-        let input = "1\tfirst note\n2\tsecond cargo build\n3\t[[ binary data 12 KiB png 200x200 ]]\n";
+        let input =
+            "1\tfirst note\n2\tsecond cargo build\n3\t[[ binary data 12 KiB png 200x200 ]]\n";
         let items = parse_cliphist_list(input);
         let mut app = ClipboardApp::new(items, crate::theme::default_palette());
 

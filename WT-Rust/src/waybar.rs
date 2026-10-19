@@ -12,29 +12,63 @@ pub struct WaybarOutput {
 }
 
 pub fn get_gpu() {
-    let output = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
+    if std::path::Path::new("/proc/driver/nvidia/version").exists() {
+        let output = Command::new("nvidia-smi")
+            .args([
+                "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total",
+                "--format=csv,noheader,nounits",
+            ])
+            .output();
 
-    if let Ok(out) = output
-        && out.status.success()
-    {
-        let text = String::from_utf8_lossy(&out.stdout);
-        let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
-        if parts.len() >= 2 {
-            let util = parts[0];
-            let temp = parts[1];
-            let resp = WaybarOutput {
-                text: format!("󰢮 {}%  {}°C", util, temp),
-                tooltip: Value::Bool(false),
-                class: None,
-            };
-            if let Ok(json_str) = serde_json::to_string(&resp) {
-                println!("{}", json_str);
-                return;
+        if let Ok(out) = output
+            && out.status.success()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
+            if parts.len() >= 2 {
+                let util = parts[0];
+                let temp = parts[1];
+                let resp = WaybarOutput {
+                    text: format!("󰢮 {}%  {}°C", util, temp),
+                    tooltip: Value::Bool(false),
+                    class: None,
+                };
+                if let Ok(json_str) = serde_json::to_string(&resp) {
+                    println!("{}", json_str);
+                    return;
+                }
+            }
+        }
+    }
+
+    // Sysfs AMD/Intel GPU busy percent + hwmon temp (zero process spawn)
+    if let Ok(entries) = fs::read_dir("/sys/class/drm") {
+        for entry in entries.flatten() {
+            let dev = entry.path().join("device");
+            if let Ok(busy_str) = fs::read_to_string(dev.join("gpu_busy_percent"))
+                && let Ok(util) = busy_str.trim().parse::<u32>()
+            {
+                let mut temp_str = String::new();
+                if let Ok(hwmons) = fs::read_dir(dev.join("hwmon")) {
+                    for hw in hwmons.flatten() {
+                        if let Ok(t_str) = fs::read_to_string(hw.path().join("temp1_input"))
+                            && let Ok(t_milli) = t_str.trim().parse::<u32>()
+                            && t_milli > 0
+                        {
+                            temp_str = format!("  {}°C", t_milli / 1000);
+                            break;
+                        }
+                    }
+                }
+                let resp = WaybarOutput {
+                    text: format!("󰢮 {}%{}", util, temp_str),
+                    tooltip: Value::Bool(false),
+                    class: None,
+                };
+                if let Ok(json_str) = serde_json::to_string(&resp) {
+                    println!("{}", json_str);
+                    return;
+                }
             }
         }
     }
@@ -48,7 +82,7 @@ pub fn get_gpu() {
 }
 
 fn get_desktops_state() -> (Vec<(String, String)>, usize, String) {
-    let desktops_out = Command::new("busctl")
+    let combined_out = Command::new("busctl")
         .args([
             "--user",
             "--json=short",
@@ -57,43 +91,36 @@ fn get_desktops_state() -> (Vec<(String, String)>, usize, String) {
             "/VirtualDesktopManager",
             "org.kde.KWin.VirtualDesktopManager",
             "desktops",
-        ])
-        .output();
-
-    let cur_out = Command::new("busctl")
-        .args([
-            "--user",
-            "--json=short",
-            "get-property",
-            "org.kde.KWin",
-            "/VirtualDesktopManager",
-            "org.kde.KWin.VirtualDesktopManager",
             "current",
         ])
         .output();
 
     let mut desktops = Vec::new();
-    if let Ok(out) = desktops_out
-        && let Ok(v) = serde_json::from_slice::<Value>(&out.stdout)
-        && let Some(arr) = v.get("data").and_then(|d| d.as_array())
-    {
-        for item in arr {
-            if let Some(entry) = item.as_array()
-                && entry.len() >= 3
-            {
-                let did = entry[1].as_str().unwrap_or("").to_string();
-                let name = entry[2].as_str().unwrap_or("").to_string();
-                desktops.push((did, name));
+    let mut cur_id = String::new();
+
+    if let Ok(out) = combined_out {
+        let stdout_str = String::from_utf8_lossy(&out.stdout);
+        let mut lines = stdout_str.lines();
+        if let Some(first_line) = lines.next()
+            && let Ok(v) = serde_json::from_str::<Value>(first_line)
+            && let Some(arr) = v.get("data").and_then(|d| d.as_array())
+        {
+            for item in arr {
+                if let Some(entry) = item.as_array()
+                    && entry.len() >= 3
+                {
+                    let did = entry[1].as_str().unwrap_or("").to_string();
+                    let name = entry[2].as_str().unwrap_or("").to_string();
+                    desktops.push((did, name));
+                }
             }
         }
-    }
-
-    let mut cur_id = String::new();
-    if let Ok(out) = cur_out
-        && let Ok(v) = serde_json::from_slice::<Value>(&out.stdout)
-        && let Some(s) = v.get("data").and_then(|d| d.as_str())
-    {
-        cur_id = s.to_string();
+        if let Some(second_line) = lines.next()
+            && let Ok(v) = serde_json::from_str::<Value>(second_line)
+            && let Some(s) = v.get("data").and_then(|d| d.as_str())
+        {
+            cur_id = s.to_string();
+        }
     }
 
     let mut cur_idx = 0;
@@ -158,7 +185,11 @@ pub fn handle_workspaces(arg: Option<&str>) {
                 }
             }
 
-            let text = format!("<span color='{}'>|</span>   {}", pal.text_muted, dots.join("   "));
+            let text = format!(
+                "<span color='{}'>|</span>   {}",
+                pal.text_muted,
+                dots.join("   ")
+            );
             let resp = WaybarOutput {
                 text,
                 tooltip: Value::String(format!("{} ({}/{})", cur_name, cur_idx + 1, count)),
