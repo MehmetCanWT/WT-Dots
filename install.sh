@@ -86,11 +86,16 @@ install_dependencies() {
 
 install_dependencies
 
-# Ensure Wallpapers directory exists (supports both Turkish and English XDG locales on Bazzite)
+# Ensure Wallpapers directory exists and sync bundled wallpapers (Turkish & English XDG locales)
 if [ -d "$HOME/Pictures" ] && [ ! -d "$HOME/Resimler" ]; then
-    mkdir -p "$HOME/Pictures/Wallpapers"
+    WP_DEST="$HOME/Pictures/Wallpapers"
 else
-    mkdir -p "$HOME/Resimler/Wallpapers"
+    WP_DEST="$HOME/Resimler/Wallpapers"
+fi
+mkdir -p "$WP_DEST"
+if [ -d "$SCRIPT_DIR/Wallpapers" ]; then
+    echo "==> Copying bundled wallpapers to $WP_DEST..."
+    cp -n "$SCRIPT_DIR/Wallpapers/"* "$WP_DEST/" 2>/dev/null || cp -u "$SCRIPT_DIR/Wallpapers/"* "$WP_DEST/" 2>/dev/null || true
 fi
 
 # 2. Build WT-Rust companion binary in release mode
