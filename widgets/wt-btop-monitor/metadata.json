@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "MehmetCanWT"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "BTOP-style live system monitor widget for taskbar and desktop with CPU, RAM, GPU, Disks, Network and Processes",
+        "Description[tr]": "CPU, RAM, GPU, Disk, Ağ ve Süreçleri gösteren BTOP tarzı canlı sistem izleyici",
+        "Icon": "utilities-system-monitor",
+        "Id": "wt.btop.monitor",
+        "License": "GPL-3.0+",
+        "Name": "BTOP Monitor",
+        "Name[tr]": "BTOP Sistem İzleyici",
+        "Version": "2.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

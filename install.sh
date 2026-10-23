@@ -39,22 +39,12 @@ install_dependencies() {
     if [ "$IS_OSTREE" -eq 1 ]; then
         echo "==> Detected Bazzite / Fedora Atomic (ostree) environment"
 
-        # Prefer Homebrew on Bazzite for userspace CLI tools like cliphist
-        if command -v brew >/dev/null 2>&1; then
-            if ! command -v cliphist >/dev/null 2>&1; then
-                echo "==> Installing cliphist via Homebrew..."
-                brew install cliphist || true
-            fi
-        fi
-
         # Collect any missing host/Wayland packages for live rpm-ostree layering
         local missing_pkgs=()
         command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
-        command -v waybar >/dev/null 2>&1 || missing_pkgs+=("waybar")
         command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
         command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
         command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
-        command -v cliphist >/dev/null 2>&1 || missing_pkgs+=("cliphist")
 
         if [ "${#missing_pkgs[@]}" -gt 0 ]; then
             echo "==> Installing missing system packages on Bazzite via rpm-ostree (--apply-live): ${missing_pkgs[*]}"
@@ -64,11 +54,9 @@ install_dependencies() {
     elif command -v dnf >/dev/null 2>&1; then
         local missing_pkgs=()
         command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
-        command -v waybar >/dev/null 2>&1 || missing_pkgs+=("waybar")
         command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
         command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
         command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
-        command -v cliphist >/dev/null 2>&1 || missing_pkgs+=("cliphist")
 
         if [ "${#missing_pkgs[@]}" -gt 0 ]; then
             echo "==> Installing missing packages via dnf: ${missing_pkgs[*]}"
@@ -119,9 +107,9 @@ link_config() {
     echo "==> Linked $dst -> $src"
 }
 
-link_config "$SCRIPT_DIR/waybar" "$HOME/.config/waybar"
 link_config "$SCRIPT_DIR/rofi" "$HOME/.config/rofi"
 link_config "$SCRIPT_DIR/keybinds.conf" "$HOME/.config/keybinds.conf"
+link_config "$SCRIPT_DIR/rustfetch" "$HOME/.config/rustfetch"
 
 # 4. Configure Spectacle (auto-save to folder + clipboard, never open viewer window)
 echo "==> Configuring Spectacle screenshot settings..."
@@ -141,20 +129,14 @@ EOF
     fi
 fi
 
-# 5. Install & Enable User systemd services (Waybar + Cliphist)
-echo "==> Configuring systemd user services..."
-mkdir -p "$HOME/.config/systemd/user"
-
-for unit in waybar.service cliphist-text.service cliphist-image.service clipboard-sync-primary.service; do
-    if [ -f "$SCRIPT_DIR/systemd/$unit" ]; then
-        cp "$SCRIPT_DIR/systemd/$unit" "$HOME/.config/systemd/user/$unit"
+# 5. Install Plasma 6 Widgets
+echo "==> Installing Plasma 6 widgets..."
+if [ -d "$SCRIPT_DIR/widgets/wt-btop-monitor" ]; then
+    mkdir -p "$HOME/.local/share/plasma/plasmoids"
+    if command -v kpackagetool6 >/dev/null 2>&1; then
+        kpackagetool6 --type Plasma/Applet --upgrade "$SCRIPT_DIR/widgets/wt-btop-monitor" 2>/dev/null || \
+        kpackagetool6 --type Plasma/Applet --install "$SCRIPT_DIR/widgets/wt-btop-monitor" 2>/dev/null || true
     fi
-done
-
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user daemon-reload || true
-    systemctl --user enable waybar.service cliphist-text.service cliphist-image.service clipboard-sync-primary.service || true
-    systemctl --user restart waybar.service cliphist-text.service cliphist-image.service clipboard-sync-primary.service || true
 fi
 
 # 6. Sync declarative keybindings into KDE Plasma 6

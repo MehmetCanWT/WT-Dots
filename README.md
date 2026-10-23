@@ -1,30 +1,31 @@
 # WT-Dots
 
-Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring a floating 3-island **Waybar**, a fast companion helper & wallpaper selector written in **100% Pure Rust** (`wt-rust`), and a matching **Rofi** launcher.
+Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring an ultra-fast hardware-accelerated companion helper & wallpaper selector written in **Pure Rust** (`wt-rust`), a native BTOP-style system monitor Plasmoid widget, custom **RustFetch** system info configs, and a matching **Rofi** launcher.
 
 ---
 
 ## Architecture & Features
 
-- **Waybar (KDE Plasma 6)**:
-  - 3-island floating pill layout (`#111116` dark background with dynamic accent border and shadow).
-  - Desktop & fullscreen friendly (`layer: "background"`, `exclusive: false`) — stays visible on `Meta+D` (Show Desktop) while windows smoothly cover the bar when maximized.
-  - Left island: CPU utilization + core temp, GPU utilization + temp (`wt-rust gpu`), RAM usage, and active workspace dots (`● ○`).
-  - Center island: Day & time clock alongside Antigravity active model & session token/quota monitor (`wt-rust agy`).
-  - Right island: System tray, network indicator (Wi-Fi / Ethernet), audio volume (`wt-rust volume`, capped at 100%), backlight (`wt-rust brightness`, 1% hard floor + KDE DBus sync), and battery/power profile status (`wt-rust power`).
+- **KDE Plasma 6 Native Taskbar & BTOP Widget (`wt-btop-monitor`)**:
+  - Native Plasma 6 plasmoid applet with compact taskbar meters (CPU, RAM, GPU) and full expandable pop-up panel.
+  - Sub-millisecond stats collection powered directly by `wt-rust btop-stats` in native machine code (no runtime overhead, minimal CPU/battery impact).
+  - Dynamic color theme adaptation reacting live to wallpaper palette changes.
+  - Bilingual localization: Automatically detects system language (Turkish or English).
+  - Accurate metrics: Per-core CPU load, temperature, frequency, RAM & SWAP, disk usage (Bazzite atomic ostree & standard Linux support), NVIDIA GPU telemetry, real-time network transfer rates, and top active processes.
+
 - **`wt-rust` (`WT-Rust`)**:
-  - Zero-bloat, single-binary Rust companion replacing all external shell/Python scripts:
-  - `wt-rust agy`: Fast (<1ms) parser displaying current Antigravity CLI model, session token usage, and quota limits directly in Waybar.
-  - `wt-rust wallpaper [select|apply <path>]`: Hardware-accelerated (`eframe`/`egui` + Wayland + Glow) zero-text fullscreen stepped-carousel wallpaper selector with centered 4-color theme swatch preview, smooth background crossfade, and multi-core RAM/disk caching (`~/.cache/wt-rust/`).
-  - `wt-rust theme [get <path> | apply [path]]`: Fast (<1ms) dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (desktop accent & window decorations), GTK 3 & GTK 4, Kitty terminal (`current-theme.conf` with 16-color ANSI harmony), Waybar (`theme.css`), Rofi (`theme.rasi`), and Fastfetch logo accent.
-  - `wt-rust keybinds [watch]`: Syncs `~/.config/keybinds.conf` into KDE Plasma 6 global shortcuts (`kglobalshortcutsrc`) and cleans up removed bindings automatically.
-  - `wt-rust gpu`: NVIDIA GPU utilization and temperature JSON output for Waybar.
-  - `wt-rust workspaces [next|prev]`: KWin `VirtualDesktopManager` DBus status and desktop switching.
-  - `wt-rust brightness [toggle|inc|dec]`: KDE PowerManagement DBus + sysfs backlight control with a strict 1% minimum floor.
-  - `wt-rust volume [inc|dec|mute|status]`: PipeWire (`wpctl`) volume control strictly capped at 100%.
-  - `wt-rust power [status|next|prev|set|get]`: Battery telemetry and KDE / `power-profiles-daemon` profile switching.
+  - Single-binary Rust companion replacing external shell/Python scripts:
+  - `wt-rust wallpaper [select|apply <path>]`: Hardware-accelerated (`eframe`/`egui` + Wayland + Glow) fullscreen wallpaper carousel selector with smooth crossfade and cached thumbnails.
+  - `wt-rust theme [get <path> | apply [path]]`: Dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (.colors scheme & window decorations), GTK 3 & GTK 4, Kitty terminal (`current-theme.conf`), and Rofi (`theme.rasi`).
+  - `wt-rust keybinds [sync|watch]`: Declarative keybinding sync from `keybinds.conf` directly into KDE Plasma 6 global shortcuts.
+  - `wt-rust btop-stats`: High-performance JSON system telemetry generator for the Plasma monitor widget.
+
+- **RustFetch (`rustfetch`)**:
+  - Pre-configured `config.toml` for blazing fast terminal system info.
+  - Bundled custom high-resolution logos in `rustfetch/logos/` with dynamic color extraction.
+
 - **Rofi**:
-  - Centered modern dark launcher (`drun` + `calc`) styled with dynamic accent colors.
+  - Modern centered dark launcher (`drun` + `calc`) automatically styled with wallpaper accent colors.
 
 ---
 
@@ -32,104 +33,46 @@ Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring a floating 3-island **
 
 ```
 WT-Dots/
-├── install.sh          # One-shot idempotent installer & config linker
-├── keybinds.conf       # Declarative KDE Plasma 6 global shortcuts (Meta+W)
-├── systemd/
-│   └── waybar.service  # Systemd user service for Waybar autostart
-├── waybar/
-│   ├── config.jsonc    # Waybar layout & module bindings
-│   ├── style.css       # 3-island CSS styling & color variables
-│   └── theme.css       # Dynamic theme override palette
-├── WT-Rust/            # Pure Rust companion binary & GUI wallpaper selector
+├── install.sh                  # One-shot idempotent installer & config linker
+├── keybinds.conf               # Declarative KDE Plasma 6 global shortcuts
+├── rustfetch/                  # RustFetch terminal info configuration
+│   ├── config.toml
+│   └── logos/                  # Custom logos & color configurations
+├── widgets/                    # Native Plasma 6 widgets
+│   ├── wt-btop-monitor/        # QML source files
+│   └── wt-btop-monitor.plasmoid# Packaged Plasma 6 applet
+├── WT-Rust/                    # Pure Rust companion binary & GUI selector
 │   ├── Cargo.toml
-│   ├── Cargo.lock
 │   └── src/
 │       ├── main.rs
-│       ├── agy.rs
-│       ├── audio.rs
+│       ├── btop.rs
 │       ├── keybinds.rs
-│       ├── power.rs
-│       ├── sysinfo.rs
 │       ├── theme.rs
-│       ├── wallpaper.rs
-│       └── waybar.rs
-├── rofi/
-│   ├── config.rasi     # Rofi settings & keybindings
-│   └── theme.rasi      # Custom Rofi theme (dynamically updated by wt-rust)
-├── road.md             # Project roadmap & engineering log
+│       └── wallpaper.rs
+├── rofi/                       # Rofi launcher theme & config
+├── Wallpapers/                 # Bundled wallpaper collection
 └── README.md
 ```
 
 ---
 
-## Requirements
-
-- **KDE Plasma 6** on Wayland
-- **Waybar**
-- **Rust & Cargo** (`rustc`, `cargo`)
-- **Rofi** (`rofi-wayland`, `rofi-calc`)
-- **brightnessctl** (fallback for backlight control)
-- **wireplumber** (`wpctl` for PipeWire audio)
-- **NVIDIA Proprietary Drivers** (`nvidia-smi` for GPU metrics)
-- **Font**: `0xProto Nerd Font`
-
----
-
 ## Installation & Setup
 
-### One-Line Install (Recommended)
+### Automated Setup
 
-Run the single-line bootstrap installer to clone the repository, build `wt-rust`, symlink configurations, configure systemd services, and register KDE Plasma 6 keybindings:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/MehmetCanWT/WT-Dots/main/install.sh)
-```
-
-### Local Setup
-
-If you have already cloned the repository:
+Run the installer from within the cloned repository:
 
 ```bash
 ./install.sh
 ```
 
-### Manual Setup
-
-1. **Build and Install `wt-rust`**:
-   ```bash
-   cargo build --release --manifest-path WT-Rust/Cargo.toml
-   install -Dm755 WT-Rust/target/release/wt-rust ~/.local/bin/wt-rust
-   ```
-
-2. **Symlink Configurations**:
-   ```bash
-   ln -sfn "$PWD/waybar" ~/.config/waybar
-   ln -sfn "$PWD/rofi" ~/.config/rofi
-   ln -sfn "$PWD/keybinds.conf" ~/.config/keybinds.conf
-   wt-rust keybinds
-   ```
-
-3. **Waybar Autostart (systemd user service)**:
-
-```bash
-mkdir -p ~/.config/systemd/user
-cat << 'EOF' > ~/.config/systemd/user/waybar.service
-[Unit]
-Description=Waybar
-PartOf=graphical-session.target
-After=graphical-session.target
-
-[Service]
-ExecStart=/usr/bin/waybar
-Restart=on-failure
-
-[Install]
-WantedBy=graphical-session.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable --now waybar.service
-```
+The script will:
+1. Verify and install any missing system dependencies.
+2. Build `wt-rust` in release mode and install it to `~/.local/bin/wt-rust`.
+3. Symlink `rofi`, `keybinds.conf`, and `rustfetch` into `~/.config/`.
+4. Copy bundled wallpapers to your pictures directory.
+5. Install and register the `wt-btop-monitor` Plasma 6 widget.
+6. Synchronize declarative keybindings with KDE.
 
 ---
 

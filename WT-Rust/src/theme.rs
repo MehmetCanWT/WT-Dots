@@ -166,8 +166,11 @@ pub fn extract_palette_from_image(img: &image::DynamicImage) -> Palette {
         let muted_rgb = hsl_to_rgb(h, 0.18, 0.46);
         let muted_hex = format!("#{:02x}{:02x}{:02x}", muted_rgb.0, muted_rgb.1, muted_rgb.2);
 
+        let bg_rgb = hsl_to_rgb(h, 0.16, 0.08);
+        let bg_hex = format!("#{:02x}{:02x}{:02x}", bg_rgb.0, bg_rgb.1, bg_rgb.2);
+
         Palette {
-            bg: "#111116".to_string(),
+            bg: bg_hex,
             border: format!(
                 "rgba({}, {}, {}, 0.22)",
                 accent_rgb.0, accent_rgb.1, accent_rgb.2
@@ -317,33 +320,216 @@ fn generate_kitty_theme(pal: &Palette) -> String {
     )
 }
 
+pub fn generate_kde_colors(pal: &Palette, scheme_name: &str) -> String {
+    let (ar, ag, ab) = pal.accent_rgb;
+    let (h, _, _) = rgb_to_hsl(ar, ag, ab);
+    let accent_str = format!("{},{},{}", ar, ag, ab);
+
+    let sec_rgb = hsl_to_rgb((h + 30.0).rem_euclid(360.0), 0.65, 0.65);
+    let sec_str = format!("{},{},{}", sec_rgb.0, sec_rgb.1, sec_rgb.2);
+
+    let view_bg = hsl_to_rgb(h, 0.18, 0.07);
+    let view_alt = hsl_to_rgb(h, 0.16, 0.10);
+
+    let win_bg = hsl_to_rgb(h, 0.16, 0.11);
+    let btn_bg = hsl_to_rgb(h, 0.16, 0.16);
+    let btn_alt = hsl_to_rgb(h, 0.16, 0.22);
+
+    let hdr_bg = hsl_to_rgb(h, 0.16, 0.13);
+    let comp_bg = hsl_to_rgb(h, 0.18, 0.10);
+    let comp_alt = hsl_to_rgb(h, 0.20, 0.16);
+
+    let fmt = |c: (u8, u8, u8)| format!("{},{},{}", c.0, c.1, c.2);
+
+    format!(
+        r#"[ColorEffects:Disabled]
+Color=56,56,56
+ColorAmount=0
+ColorEffect=0
+ContrastAmount=0.65
+ContrastEffect=1
+IntensityAmount=0.1
+IntensityEffect=2
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=true
+Color=112,111,110
+ColorAmount=0.025
+ColorEffect=2
+ContrastAmount=0.1
+ContrastEffect=2
+Enable=false
+IntensityAmount=0
+IntensityEffect=0
+
+[Colors:Button]
+BackgroundAlternate={btn_alt}
+BackgroundNormal={btn_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:Complementary]
+BackgroundAlternate={comp_alt}
+BackgroundNormal={comp_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:Header]
+BackgroundAlternate={win_bg}
+BackgroundNormal={hdr_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:Header][Inactive]
+BackgroundAlternate={hdr_bg}
+BackgroundNormal={win_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:Selection]
+BackgroundAlternate={sec}
+BackgroundNormal={accent}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive=252,252,252
+ForegroundInactive=161,169,177
+ForegroundLink=253,188,75
+ForegroundNegative=176,55,69
+ForegroundNeutral=198,92,0
+ForegroundNormal=252,252,252
+ForegroundPositive=23,104,57
+ForegroundVisited=155,89,182
+
+[Colors:Tooltip]
+BackgroundAlternate={win_bg}
+BackgroundNormal={btn_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:View]
+BackgroundAlternate={view_alt}
+BackgroundNormal={view_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[Colors:Window]
+BackgroundAlternate={btn_bg}
+BackgroundNormal={win_bg}
+DecorationFocus={accent}
+DecorationHover={sec}
+ForegroundActive={accent}
+ForegroundInactive=155,162,175
+ForegroundLink={accent}
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=240,242,245
+ForegroundPositive=39,174,96
+ForegroundVisited=155,89,182
+
+[General]
+ColorScheme={scheme_name}
+Name={scheme_name}
+shadeSortColumn=true
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground={hdr_bg}
+activeBlend=252,252,252
+activeForeground=252,252,252
+inactiveBackground={win_bg}
+inactiveBlend=155,162,175
+inactiveForeground=155,162,175
+"#,
+        btn_alt = fmt(btn_alt),
+        btn_bg = fmt(btn_bg),
+        accent = accent_str,
+        sec = sec_str,
+        comp_alt = fmt(comp_alt),
+        comp_bg = fmt(comp_bg),
+        win_bg = fmt(win_bg),
+        hdr_bg = fmt(hdr_bg),
+        view_alt = fmt(view_alt),
+        view_bg = fmt(view_bg),
+        scheme_name = scheme_name
+    )
+}
+
+pub fn set_kde_wallpaper(abs_str: &str) {
+    let script = format!(
+        r#"var allDesktops = desktops();
+for (var i = 0; i < allDesktops.length; i++) {{
+    var d = allDesktops[i];
+    d.wallpaperPlugin = "org.kde.image";
+    d.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");
+    d.writeConfig("Image", "file://{}");
+}}"#,
+        abs_str
+    );
+
+    let _ = Command::new(qdbus_cmd())
+        .args([
+            "org.kde.plasmashell",
+            "/PlasmaShell",
+            "org.kde.PlasmaShell.evaluateScript",
+            &script,
+        ])
+        .status();
+}
+
 pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
     let abs_str = abs_wallpaper_path.to_string_lossy();
     if let Some(home) = env::var_os("HOME") {
         let home_path = PathBuf::from(home);
-
-        // 1. Waybar CSS Theme
-        let waybar_theme = home_path.join(".config/waybar/theme.css");
-        let theme_css = format!(
-            "/* Dynamic Palette extracted by wt-rust */\n\
-             @define-color base-bg {};\n\
-             @define-color base-border {};\n\
-             @define-color text-color {};\n\
-             @define-color text-dim {};\n\
-             @define-color text-muted {};\n\
-             @define-color accent-color {};\n\
-             @define-color accent-secondary {};\n\
-             @define-color warning-color #e0a352;\n\
-             @define-color critical-color #e05f52;\n",
-            pal.bg,
-            pal.border,
-            pal.text_color,
-            pal.text_dim,
-            pal.text_muted,
-            pal.accent,
-            pal.accent_secondary
-        );
-        let _ = fs::write(&waybar_theme, &theme_css);
 
         // Fast-access palette & current wallpaper cache
         let cache_dir = home_path.join(".cache/wt-rust");
@@ -443,46 +629,50 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
         let _ = fs::write(&rofi_theme, &rasi_content);
 
         // 3. GTK 3.0 & GTK 4.0 User CSS
-        let gtk3_file = home_path.join(".config/gtk-3.0/gtk.css");
-        if gtk3_file.exists() {
-            let gtk3_content = format!(
-                "@define-color accent_color {};\n\
-                 @define-color accent_bg_color {};\n\
-                 @define-color accent_fg_color #ffffff;\n\
-                 @define-color theme_selected_bg_color {};\n\
-                 @define-color theme_selected_fg_color #ffffff;\n\
-                 @import 'colors.css';\n",
-                pal.accent, pal.accent, pal.accent
-            );
-            let _ = fs::write(gtk3_file, gtk3_content);
-        }
+        let gtk3_dir = home_path.join(".config/gtk-3.0");
+        let _ = fs::create_dir_all(&gtk3_dir);
+        let gtk3_file = gtk3_dir.join("gtk.css");
+        let gtk3_content = format!(
+            "@define-color accent_color {accent};\n\
+             @define-color accent_bg_color {accent};\n\
+             @define-color accent_fg_color #ffffff;\n\
+             @define-color theme_selected_bg_color {accent};\n\
+             @define-color theme_selected_fg_color #ffffff;\n\
+             @define-color window_bg_color {bg};\n\
+             @define-color window_fg_color #eff0f4;\n\
+             @define-color view_bg_color {bg};\n\
+             @define-color view_fg_color #eff0f4;\n",
+            accent = pal.accent,
+            bg = pal.bg
+        );
+        let _ = fs::write(gtk3_file, gtk3_content);
 
-        let gtk4_file = home_path.join(".config/gtk-4.0/gtk.css");
-        if gtk4_file.exists() {
-            let gtk4_content = format!(
-                "@define-color accent_color {};\n\
-                 @define-color accent_bg_color {};\n\
-                 @define-color accent_fg_color #ffffff;\n\
-                 @define-color window_bg_color {};\n\
-                 @define-color window_fg_color #e6e7ea;\n\
-                 @define-color view_bg_color {};\n\
-                 @define-color view_fg_color #e6e7ea;\n\
-                 @define-color headerbar_bg_color {};\n\
-                 @define-color headerbar_fg_color #e6e7ea;\n\
-                 @define-color card_bg_color {};\n\
-                 @define-color card_fg_color #e6e7ea;\n\
-                 @define-color popover_bg_color {};\n\
-                 @define-color popover_fg_color #e6e7ea;\n\n\
-                 .navigation-sidebar > row:selected {{\n\
-                 \x20   background-color: @accent_bg_color;\n\
-                 \x20   color: @accent_fg_color;\n\
-                 \x20   border-radius: 6px;\n\
-                 }}\n\
-                 @import 'colors.css';\n",
-                pal.accent, pal.accent, pal.bg, pal.bg, pal.bg, pal.bg, pal.bg
-            );
-            let _ = fs::write(gtk4_file, gtk4_content);
-        }
+        let gtk4_dir = home_path.join(".config/gtk-4.0");
+        let _ = fs::create_dir_all(&gtk4_dir);
+        let gtk4_file = gtk4_dir.join("gtk.css");
+        let gtk4_content = format!(
+            "@define-color accent_color {accent};\n\
+             @define-color accent_bg_color {accent};\n\
+             @define-color accent_fg_color #ffffff;\n\
+             @define-color window_bg_color {bg};\n\
+             @define-color window_fg_color #eff0f4;\n\
+             @define-color view_bg_color {bg};\n\
+             @define-color view_fg_color #eff0f4;\n\
+             @define-color headerbar_bg_color {bg};\n\
+             @define-color headerbar_fg_color #eff0f4;\n\
+             @define-color card_bg_color {bg};\n\
+             @define-color card_fg_color #eff0f4;\n\
+             @define-color popover_bg_color {bg};\n\
+             @define-color popover_fg_color #eff0f4;\n\n\
+             .navigation-sidebar > row:selected {{\n\
+                 background-color: @accent_bg_color;\n\
+                 color: @accent_fg_color;\n\
+                 border-radius: 6px;\n\
+             }}\n",
+            accent = pal.accent,
+            bg = pal.bg
+        );
+        let _ = fs::write(gtk4_file, gtk4_content);
 
         // 4. Kitty Terminal Theme
         let kitty_dir = home_path.join(".config/kitty");
@@ -492,15 +682,43 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             let _ = Command::new("pkill").args(["-SIGUSR1", "kitty"]).status();
         }
 
-        // 4. Fastfetch Logo Color Sync
+        // 5. Fastfetch Logo Color Sync
         let fastfetch_color = home_path.join(".config/fastfetch/logos/current.png.color");
         if fastfetch_color.parent().is_some_and(|p| p.exists()) {
             let _ = fs::write(fastfetch_color, &pal.accent);
         }
 
-        // 5. KDE Plasma 6 System Accent Color (cascades to GTK 3 & GTK 4 via kde-gtk-config)
+        // 6. Set KDE Desktop Wallpaper via DBus
+        set_kde_wallpaper(&abs_str);
+
+        // 7. Generate and Apply Full Dynamic KDE Color Scheme
+        let scheme_dir = home_path.join(".local/share/color-schemes");
+        let _ = fs::create_dir_all(&scheme_dir);
+
+        let cur_scheme = Command::new("kreadconfig6")
+            .args(["--file", "kdeglobals", "--group", "General", "--key", "ColorScheme"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default();
+
+        let target_scheme = if cur_scheme.trim() == "WTDynamicA" {
+            "WTDynamicB"
+        } else {
+            "WTDynamicA"
+        };
+
+        let kde_colors = generate_kde_colors(pal, target_scheme);
+        let _ = fs::write(scheme_dir.join(format!("{}.colors", target_scheme)), kde_colors);
+
+        // Apply new color scheme
         let _ = Command::new("plasma-apply-colorscheme")
-            .args(["-a", &pal.accent, "BreezeDark"])
+            .arg(target_scheme)
+            .status();
+
+        // Apply accent color
+        let _ = Command::new("plasma-apply-colorscheme")
+            .args(["-a", &pal.accent])
             .status();
 
         let rgb_str = format!(
@@ -546,9 +764,6 @@ pub fn apply_theme(pal: &Palette, abs_wallpaper_path: &Path) {
             .args(["org.kde.KWin", "/KWin", "reconfigure"])
             .status();
     }
-
-    // 7. Reload Waybar CSS seamlessly without notification
-    let _ = Command::new("pkill").args(["-SIGUSR2", "waybar"]).status();
 
     println!("Wallpaper applied: {}", abs_str);
     println!("Palette: Accent={}, BG={}", pal.accent, pal.bg);

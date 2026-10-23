@@ -46,8 +46,6 @@ pub fn derive_action_info(key: &str, cmd: &str) -> (String, String) {
         ("Terminal".to_string(), "Terminal (Kitty)".to_string())
     } else if cmd_lower.contains("wallpaper select") {
         ("Wallpaper".to_string(), "Wallpaper Selector".to_string())
-    } else if cmd_lower.contains("clipboard") {
-        ("Clipboard".to_string(), "Clipboard History".to_string())
     } else {
         let base_id = cmd
             .split_whitespace()
@@ -202,7 +200,7 @@ pub fn sync_keybinds() {
         ])
         .status();
 
-    // Unbind plasmashell default clipboard shortcut if Meta+V is used by WTDots
+    // Restore or unbind plasmashell default clipboard shortcut based on whether Meta+V is used by WTDots
     let has_meta_v = actions.iter().any(|a| a.key == "Meta+V");
     if has_meta_v {
         let _ = Command::new("kwriteconfig6")
@@ -216,7 +214,34 @@ pub fn sync_keybinds() {
                 "none,none,Fare Konumunda Pano Ögelerini Göster",
             ])
             .status();
+    } else {
+        let _ = Command::new("kwriteconfig6")
+            .args([
+                "--file",
+                "kglobalshortcutsrc",
+                "--group",
+                "plasmashell",
+                "--key",
+                "show-on-mouse-pos",
+                "Meta+V,Meta+V,Fare Konumunda Pano Ögelerini Göster",
+            ])
+            .status();
     }
+
+    // Always clean up any leftover Clipboard action from wtdots.desktop services in kglobalshortcutsrc
+    let _ = Command::new("kwriteconfig6")
+        .args([
+            "--file",
+            "kglobalshortcutsrc",
+            "--group",
+            "services",
+            "--group",
+            "wtdots.desktop",
+            "--key",
+            "Clipboard",
+            "--delete",
+        ])
+        .status();
 
     // Unbind KWin Overview shortcut if Meta+W is used by WTDots
     let has_meta_w = actions.iter().any(|a| a.key == "Meta+W");
@@ -234,8 +259,8 @@ pub fn sync_keybinds() {
             .status();
     }
 
-    // Ensure KWin window rule for wt-clipboard opens under mouse cursor
-    ensure_clipboard_kwin_rule();
+    // Clean up any legacy KWin window rule for wt-clipboard
+    clean_clipboard_kwin_rule();
 
     // Clean up any legacy separate desktop shortcut files
     if let Ok(entries) = fs::read_dir(&apps_dir) {
@@ -276,28 +301,33 @@ pub fn sync_keybinds() {
     println!("WTDots keybindings synchronized with KDE Plasma 6.");
 }
 
-pub fn ensure_clipboard_kwin_rule() {
-    let rule_pairs = [
-        ("1", "Description", "WT-Clipboard"),
-        ("1", "placement", "UnderMouse"),
-        ("1", "placementrule", "2"),
-        ("1", "noborder", "true"),
-        ("1", "noborderrule", "2"),
-        ("1", "above", "true"),
-        ("1", "aboverule", "2"),
-        ("1", "skiptaskbar", "true"),
-        ("1", "skiptaskbarrule", "2"),
-        ("1", "skipswitcher", "true"),
-        ("1", "skipswitcherrule", "2"),
-        ("1", "wmclass", "wt-clipboard"),
-        ("1", "wmclassmatch", "1"),
-        ("General", "count", "1"),
-        ("General", "rules", "1"),
-    ];
-    for (group, key, val) in rule_pairs {
-        let _ = Command::new("kwriteconfig6")
-            .args(["--file", "kwinrulesrc", "--group", group, "--key", key, val])
-            .status();
+pub fn clean_clipboard_kwin_rule() {
+    let home = match env::var_os("HOME") {
+        Some(h) => PathBuf::from(h),
+        None => return,
+    };
+    let rules_path = home.join(".config/kwinrulesrc");
+    if let Ok(content) = fs::read_to_string(&rules_path) {
+        if content.contains("Description=WT-Clipboard") || content.contains("wmclass=wt-clipboard") {
+            let mut new_lines = Vec::new();
+            let mut in_wt_group = false;
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                    in_wt_group = trimmed == "[1]";
+                }
+                if !in_wt_group {
+                    if trimmed.starts_with("count=") {
+                        new_lines.push("count=0".to_string());
+                    } else if trimmed.starts_with("rules=") {
+                        new_lines.push("rules=".to_string());
+                    } else {
+                        new_lines.push(line.to_string());
+                    }
+                }
+            }
+            let _ = fs::write(&rules_path, new_lines.join("\n"));
+        }
     }
 }
 
@@ -360,9 +390,5 @@ mod tests {
         let (id2, title2) = derive_action_info("Meta+W", "wt-rust wallpaper select");
         assert_eq!(id2, "Wallpaper");
         assert_eq!(title2, "Wallpaper Selector");
-
-        let (id3, title3) = derive_action_info("Meta+V", "wt-rust clipboard");
-        assert_eq!(id3, "Clipboard");
-        assert_eq!(title3, "Clipboard History");
     }
 }
