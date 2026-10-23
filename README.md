@@ -1,6 +1,6 @@
 # WT-Dots
 
-Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring an ultra-fast hardware-accelerated companion helper & wallpaper selector written in **Pure Rust** (`wt-rust`), a native BTOP-style system monitor Plasmoid widget, custom **RustFetch** system info configs, and a matching **Rofi** launcher.
+Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring an ultra-fast hardware-accelerated companion helper & wallpaper selector written in **Pure Rust** (`wt-rust`), a native BTOP-style system monitor Plasmoid widget, and custom **RustFetch** system info configs.
 
 ---
 
@@ -16,16 +16,13 @@ Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring an ultra-fast hardware
 - **`wt-rust` (`WT-Rust`)**:
   - Single-binary Rust companion replacing external shell/Python scripts:
   - `wt-rust wallpaper [select|apply <path>]`: Hardware-accelerated (`eframe`/`egui` + Wayland + Glow) fullscreen wallpaper carousel selector with smooth crossfade and cached thumbnails.
-  - `wt-rust theme [get <path> | apply [path]]`: Dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (.colors scheme & window decorations), GTK 3 & GTK 4, Kitty terminal (`current-theme.conf`), and Rofi (`theme.rasi`).
+  - `wt-rust theme [get <path> | apply [path]]`: Dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (.colors scheme & window decorations), GTK 3 & GTK 4, and Kitty terminal (`current-theme.conf`).
   - `wt-rust keybinds [sync|watch]`: Declarative keybinding sync from `keybinds.conf` directly into KDE Plasma 6 global shortcuts.
   - `wt-rust btop-stats`: High-performance JSON system telemetry generator for the Plasma monitor widget.
 
 - **RustFetch (`rustfetch`)**:
   - Pre-configured `config.toml` for blazing fast terminal system info.
   - Bundled custom high-resolution logos in `rustfetch/logos/` with dynamic color extraction.
-
-- **Rofi**:
-  - Modern centered dark launcher (`drun` + `calc`) automatically styled with wallpaper accent colors.
 
 ---
 
@@ -49,7 +46,6 @@ WT-Dots/
 │       ├── keybinds.rs
 │       ├── theme.rs
 │       └── wallpaper.rs
-├── rofi/                       # Rofi launcher theme & config
 ├── Wallpapers/                 # Bundled wallpaper collection
 └── README.md
 ```
@@ -69,7 +65,7 @@ Run the installer from within the cloned repository:
 The script will:
 1. Verify and install any missing system dependencies.
 2. Build `wt-rust` in release mode and install it to `~/.local/bin/wt-rust`.
-3. Symlink `rofi`, `keybinds.conf`, and `rustfetch` into `~/.config/`.
+3. Symlink `keybinds.conf` and `rustfetch` into `~/.config/`.
 4. Copy bundled wallpapers to your pictures directory.
 5. Install and register the `wt-btop-monitor` Plasma 6 widget.
 6. Synchronize declarative keybindings with KDE.

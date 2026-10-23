@@ -42,7 +42,6 @@ install_dependencies() {
         # Collect any missing host/Wayland packages for live rpm-ostree layering
         local missing_pkgs=()
         command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
-        command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
         command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
         command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
 
@@ -54,7 +53,6 @@ install_dependencies() {
     elif command -v dnf >/dev/null 2>&1; then
         local missing_pkgs=()
         command -v cc >/dev/null 2>&1 || missing_pkgs+=("gcc")
-        command -v rofi >/dev/null 2>&1 || missing_pkgs+=("rofi-wayland")
         command -v wl-paste >/dev/null 2>&1 || missing_pkgs+=("wl-clipboard")
         command -v brightnessctl >/dev/null 2>&1 || missing_pkgs+=("brightnessctl")
 
@@ -107,7 +105,6 @@ link_config() {
     echo "==> Linked $dst -> $src"
 }
 
-link_config "$SCRIPT_DIR/rofi" "$HOME/.config/rofi"
 link_config "$SCRIPT_DIR/keybinds.conf" "$HOME/.config/keybinds.conf"
 link_config "$SCRIPT_DIR/rustfetch" "$HOME/.config/rustfetch"
 
