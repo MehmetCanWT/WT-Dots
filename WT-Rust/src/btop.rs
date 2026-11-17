@@ -111,13 +111,106 @@ fn format_rate(bytes_per_sec: f64) -> String {
     }
 }
 
-pub fn handle_stats() {
+fn nvidia_gpu_active() -> bool {
+    let Ok(entries) = fs::read_dir("/sys/class/drm") else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let s = name.to_string_lossy();
+        if !s.starts_with("card") || s.contains('-') {
+            continue;
+        }
+        let dev = entry.path().join("device");
+        let vendor = fs::read_to_string(dev.join("vendor")).unwrap_or_default();
+        if vendor.trim() == "0x10de" {
+            let status = fs::read_to_string(dev.join("power/runtime_status")).unwrap_or_default();
+            return status.trim() == "active";
+        }
+    }
+    false
+}
+
+fn read_cpu_temp() -> i32 {
+    if let Ok(entries) = fs::read_dir("/sys/class/hwmon") {
+        for entry in entries.flatten() {
+            let hw = entry.path();
+            let name = fs::read_to_string(hw.join("name")).unwrap_or_default();
+            if matches!(name.trim(), "coretemp" | "k10temp" | "zenpower")
+                && let Ok(raw) = fs::read_to_string(hw.join("temp1_input"))
+                && let Ok(v) = raw.trim().parse::<i32>()
+            {
+                return if v > 1000 { (v as f64 / 1000.0).round() as i32 } else { v };
+            }
+        }
+    }
+    if let Ok(raw) = fs::read_to_string("/sys/class/thermal/thermal_zone0/temp")
+        && let Ok(v) = raw.trim().parse::<i32>()
+    {
+        return if v > 1000 { (v as f64 / 1000.0).round() as i32 } else { v };
+    }
+    -1
+}
+
+fn escape_pango(raw: &str) -> String {
+    raw.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+fn load_class(pct: f64) -> &'static str {
+    if pct >= 85.0 {
+        "critical"
+    } else if pct >= 60.0 {
+        "high"
+    } else if pct >= 35.0 {
+        "medium"
+    } else {
+        "normal"
+    }
+}
+
+fn load_hex<'a>(pct: f64, pal: &'a crate::theme::Palette) -> &'a str {
+    if pct >= 85.0 {
+        "#f38ba8"
+    } else if pct >= 60.0 {
+        "#fab387"
+    } else if pct >= 35.0 {
+        &pal.accent_secondary
+    } else {
+        &pal.accent
+    }
+}
+
+fn render_metric(label: &str, pct: f64, pal: &crate::theme::Palette) -> String {
+    let color = load_hex(pct, pal);
+    let filled = ((pct / 100.0) * 5.0).round().clamp(1.0, 5.0) as usize;
+    let empty = 5usize.saturating_sub(filled);
+    format!(
+        "<span size='small' color='{}'>{}</span> <span color='{}'><b>{}%</b></span> <span color='{}'>{}</span><span color='{}' alpha='35%'>{}</span>",
+        pal.text_dim,
+        label,
+        color,
+        pct.round() as i32,
+        color,
+        "━".repeat(filled),
+        pal.text_dim,
+        "━".repeat(empty),
+    )
+}
+
+pub fn handle_stats(args: &[String]) {
+    let waybar_mode = args.first().map(|s| s == "--waybar").unwrap_or(false);
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs_f64())
         .unwrap_or(0.0);
 
-    let state_file = "/tmp/.btop_widget_state.json";
+    let state_file = if waybar_mode {
+        "/tmp/.wt_btop_waybar_state.json"
+    } else {
+        "/tmp/.btop_widget_state.json"
+    };
     let prev_state: serde_json::Value = fs::read_to_string(state_file)
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
@@ -165,19 +258,7 @@ pub fn handle_stats() {
     }
 
     // CPU Temp
-    let mut cpu_temp = -1;
-    for tp in [
-        "/sys/class/thermal/thermal_zone0/temp",
-        "/sys/class/hwmon/hwmon1/temp1_input",
-        "/sys/class/hwmon/hwmon6/temp1_input",
-    ] {
-        if let Ok(s) = fs::read_to_string(tp) {
-            if let Ok(v) = s.trim().parse::<i32>() {
-                cpu_temp = if v > 1000 { (v as f64 / 1000.0).round() as i32 } else { v };
-                break;
-            }
-        }
-    }
+    let cpu_temp = read_cpu_temp();
 
     // CPU Frequency
     let mut cpu_freq = 0.0;
@@ -317,7 +398,9 @@ pub fn handle_stats() {
         vram_pct: 0.0,
     };
 
-    if let Ok(output) = Command::new("nvidia-smi")
+    if !waybar_mode
+        && nvidia_gpu_active()
+        && let Ok(output) = Command::new("nvidia-smi")
         .args([
             "--query-gpu=name,utilization.gpu,temperature.gpu,memory.used,memory.total",
             "--format=csv,noheader,nounits",
@@ -458,7 +541,94 @@ pub fn handle_stats() {
         palette,
     };
 
+    if waybar_mode {
+        let pal = crate::theme::get_current_palette();
+        let peak = full_stats.cpu.total.max(full_stats.mem.pct);
+        let text = format!(
+            "{}   {}",
+            render_metric("CPU", full_stats.cpu.total, &pal),
+            render_metric("RAM", full_stats.mem.pct, &pal),
+        );
+
+        let mut tip_lines = vec![
+            format!(
+                "<b>CPU</b>  {:.1}%  ·  {:.2} GHz{}",
+                full_stats.cpu.total,
+                full_stats.cpu.freq,
+                if full_stats.cpu.temp >= 0 {
+                    format!("  ·  {}°C", full_stats.cpu.temp)
+                } else {
+                    String::new()
+                }
+            ),
+            format!(
+                "<b>RAM</b>  {:.1} / {:.1} GiB ({:.0}%)",
+                full_stats.mem.used, full_stats.mem.total, full_stats.mem.pct
+            ),
+        ];
+        if full_stats.mem.swap_total > 0.0 {
+            tip_lines.push(format!(
+                "<b>Swap</b> {:.1} / {:.1} GiB ({:.0}%)",
+                full_stats.mem.swap_used, full_stats.mem.swap_total, full_stats.mem.swap_pct
+            ));
+        }
+        if full_stats.gpu.usage >= 0.0 {
+            tip_lines.push(format!(
+                "<b>GPU</b>  {:.0}%  ·  VRAM {:.1}/{:.1} GiB  ·  {:.0}°C",
+                full_stats.gpu.usage,
+                full_stats.gpu.vram_used,
+                full_stats.gpu.vram_total,
+                full_stats.gpu.temp
+            ));
+        }
+        tip_lines.push(format!(
+            "<b>Net</b>  ↓ {}  ↑ {}  ({})",
+            escape_pango(&full_stats.net.rx_rate),
+            escape_pango(&full_stats.net.tx_rate),
+            escape_pango(&full_stats.net.iface)
+        ));
+        if !full_stats.procs.is_empty() {
+            tip_lines.push(String::new());
+            tip_lines.push("<b>Top Processes</b>".to_string());
+            for p in full_stats.procs.iter().take(4) {
+                tip_lines.push(format!(
+                    "{:<14} CPU {:>4}%  MEM {:>4}%",
+                    escape_pango(&p.name),
+                    p.cpu,
+                    p.mem
+                ));
+            }
+        }
+        tip_lines.push(format!("\nUptime: {}", escape_pango(&full_stats.uptime)));
+
+        let waybar_payload = serde_json::json!({
+            "text": text,
+            "tooltip": format!("<tt>{}</tt>", tip_lines.join("\n")),
+            "class": load_class(peak),
+        });
+        println!("{}", waybar_payload);
+        return;
+    }
+
     if let Ok(json_out) = serde_json::to_string(&full_stats) {
         println!("{}", json_out);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_class_thresholds() {
+        assert_eq!(load_class(10.0), "normal");
+        assert_eq!(load_class(35.0), "medium");
+        assert_eq!(load_class(60.0), "high");
+        assert_eq!(load_class(85.0), "critical");
+    }
+
+    #[test]
+    fn test_escape_pango() {
+        assert_eq!(escape_pango("a&b<c>"), "a&amp;b&lt;c&gt;");
     }
 }

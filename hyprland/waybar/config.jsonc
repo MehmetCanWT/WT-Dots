@@ -1,0 +1,94 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "margin-top": 0,
+    "margin-left": 0,
+    "margin-right": 0,
+    "spacing": 4,
+
+    "modules-left": [
+        "hyprland/workspaces",
+        "custom/btop"
+    ],
+    "modules-center": [
+        "clock"
+    ],
+    "modules-right": [
+        "backlight",
+        "pulseaudio",
+        "network",
+        "battery",
+        "tray"
+    ],
+
+    "hyprland/workspaces": {
+        "disable-scroll": false,
+        "all-outputs": true,
+        "format": "{name}",
+        "ignore-workspaces": [
+            "^99$"
+        ]
+    },
+
+    "custom/btop": {
+        "exec": "wt-rust btop-stats --waybar",
+        "return-type": "json",
+        "interval": 2,
+        "format": "{}",
+        "tooltip": true,
+        "on-click": "ghostty --class=wt-btop -e btop"
+    },
+
+    "clock": {
+        "format": "󰥔  {:%H:%M  ·  %d %b %a}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>"
+    },
+
+    "backlight": {
+        "format": "{icon}  {percent}%",
+        "format-icons": ["󰃞", "󰃟", "󰃝", "󰃠"],
+        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh brightness up",
+        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh brightness down"
+    },
+
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "󰖁  Muted",
+        "format-icons": {
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "on-click": "wt-rust popup volume",
+        "on-click-right": "~/.config/hypr/scripts/media-step.sh mute",
+        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh volume up",
+        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh volume down",
+        "scroll-step": 5
+    },
+
+    "network": {
+        "format-wifi": "󰤨  {essid}",
+        "format-ethernet": "󰈀  Wired",
+        "format-linked": "󰈀  {ifname}",
+        "format-disconnected": "󰤭  Offline",
+        "max-length": 18,
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)\nIP: {ipaddr}/{cidr}\nGateway: {gwaddr}",
+        "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
+        "tooltip-format-disconnected": "Disconnected",
+        "on-click": "wt-rust popup wifi"
+    },
+
+    "battery": {
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon}  {capacity}%",
+        "format-charging": "󰂄  {capacity}%",
+        "format-plugged": "󰚥  {capacity}%",
+        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    },
+
+    "tray": {
+        "spacing": 8
+    }
+}

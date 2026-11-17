@@ -1033,26 +1033,30 @@ pub fn apply_wallpaper_with_palette(wallpaper_path: &Path, cached_palette: Optio
     };
     let abs_str = abs_path.to_string_lossy();
 
-    // 1. Set KDE Plasma Wallpaper via DBus
-    let script = format!(
-        r#"var allDesktops = desktops();
+    // 1. Set Desktop Wallpaper (Hyprland or KDE Plasma)
+    if crate::theme::is_hyprland() {
+        crate::theme::set_hyprland_wallpaper(&abs_str);
+    } else {
+        let script = format!(
+            r#"var allDesktops = desktops();
 for (var i = 0; i < allDesktops.length; i++) {{
     var d = allDesktops[i];
     d.wallpaperPlugin = "org.kde.image";
     d.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");
     d.writeConfig("Image", "file://{}");
 }}"#,
-        abs_str
-    );
+            abs_str
+        );
 
-    let _ = Command::new(crate::theme::qdbus_cmd())
-        .args([
-            "org.kde.plasmashell",
-            "/PlasmaShell",
-            "org.kde.PlasmaShell.evaluateScript",
-            &script,
-        ])
-        .status();
+        let _ = Command::new(crate::theme::qdbus_cmd())
+            .args([
+                "org.kde.plasmashell",
+                "/PlasmaShell",
+                "org.kde.PlasmaShell.evaluateScript",
+                &script,
+            ])
+            .status();
+    }
 
     // 2. Extract Palette (or reuse pre-computed palette) & update themes
     let owned_pal;
@@ -1071,6 +1075,23 @@ pub fn apply_wallpaper(wallpaper_path: &Path) {
 }
 
 pub fn select_wallpaper() {
+    let Some((wp_listener, _wp_guard)) = crate::popup::bind_single_instance_socket(
+        "/tmp/wt-rust-wallpaper.sock",
+        |_stream| {
+            let _ = Command::new("hyprctl")
+                .args([
+                    "eval",
+                    "hl.dispatch(hl.dsp.focus({ window = \"title:WT Wallpaper Selector\" }))",
+                ])
+                .status();
+        },
+    ) else {
+        return;
+    };
+    std::thread::spawn(move || {
+        for _ in wp_listener.incoming().flatten() {}
+    });
+
     let home = match env::var_os("HOME") {
         Some(h) => PathBuf::from(h),
         None => return,
