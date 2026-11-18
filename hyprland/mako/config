@@ -7,7 +7,7 @@ padding=14,18
 width=360
 height=140
 
-font=FantasqueSansM Nerd Font 11
+font=0xProto Nerd Font 11
 border-size=1
 border-radius=14
 include=~/.config/mako/colors
