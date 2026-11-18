@@ -2,17 +2,8 @@
 set -euo pipefail
 
 # ===================================================================
-# WT-Dots Setup & Installation Script (KDE Plasma 6 & Hyprland)
+# WT-Dots Setup & Installation Script (Hyprland)
 # ===================================================================
-
-TARGET_MODE="${1:-auto}"
-if [ "$TARGET_MODE" = "auto" ]; then
-    if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "Hyprland" ]; then
-        TARGET_MODE="--hyprland"
-    else
-        TARGET_MODE="--kde"
-    fi
-fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
 if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/WT-Rust/Cargo.toml" ]; then
@@ -24,13 +15,13 @@ if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/WT-Rust/Cargo.toml" ]; then
     else
         git clone https://github.com/MehmetCanWT/WT-Dots.git "$TARGET_DIR"
     fi
-    exec "$TARGET_DIR/install.sh" "$TARGET_MODE"
+    exec "$TARGET_DIR/install.sh" "$@"
 fi
 
-echo "==> Setting up WT-Dots ($TARGET_MODE) from: $SCRIPT_DIR"
+echo "==> Setting up WT-Dots (Hyprland) from: $SCRIPT_DIR"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
-for dir in "/home/linuxbrew/.linuxbrew/bin" "$HOME/.cargo/bin" "$HOME/.local/bin"; do
+for dir in "$HOME/.cargo/bin" "$HOME/.local/bin"; do
     if [ -d "$dir" ] && [[ ":$PATH:" != *":$dir:"* ]]; then
         export PATH="$dir:$PATH"
     fi
@@ -43,11 +34,7 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 # Sync bundled wallpapers
-if [ -d "$HOME/Pictures" ] && [ ! -d "$HOME/Resimler" ]; then
-    WP_DEST="$HOME/Pictures/Wallpapers"
-else
-    WP_DEST="$HOME/Resimler/Wallpapers"
-fi
+WP_DEST="$HOME/Pictures/Wallpapers"
 mkdir -p "$WP_DEST"
 if [ -d "$SCRIPT_DIR/Wallpapers" ]; then
     echo "==> Copying bundled wallpapers to $WP_DEST..."
@@ -68,6 +55,11 @@ cargo build --release --manifest-path "$SCRIPT_DIR/WT-Rust/Cargo.toml"
 install -Dm755 "$SCRIPT_DIR/WT-Rust/target/release/wt-rust" "$HOME/.local/bin/wt-rust"
 echo "==> Installed binary to $HOME/.local/bin/wt-rust"
 
+# Install helper binaries
+if [ -f "$SCRIPT_DIR/hyprland/bin/game-run" ]; then
+    install -Dm755 "$SCRIPT_DIR/hyprland/bin/game-run" "$HOME/.local/bin/game-run"
+fi
+
 link_config() {
     local src="$1"
     local dst="$2"
@@ -80,34 +72,12 @@ link_config() {
     echo "==> Linked $dst -> $src"
 }
 
-link_config "$SCRIPT_DIR/rustfetch" "$HOME/.config/rustfetch"
+echo "==> Linking Hyprland configs..."
+link_config "$SCRIPT_DIR/rustfetch"         "$HOME/.config/rustfetch"
+link_config "$SCRIPT_DIR/hyprland/hypr"    "$HOME/.config/hypr"
+link_config "$SCRIPT_DIR/hyprland/waybar"  "$HOME/.config/waybar"
+link_config "$SCRIPT_DIR/hyprland/rofi"    "$HOME/.config/rofi"
+link_config "$SCRIPT_DIR/hyprland/mako"    "$HOME/.config/mako"
+link_config "$SCRIPT_DIR/hyprland/ghostty" "$HOME/.config/ghostty"
 
-if [ "$TARGET_MODE" = "--hyprland" ]; then
-    echo "==> Linking Hyprland configs..."
-    link_config "$SCRIPT_DIR/hyprland/hypr"                     "$HOME/.config/hypr"
-    link_config "$SCRIPT_DIR/hyprland/waybar"                   "$HOME/.config/waybar"
-    link_config "$SCRIPT_DIR/hyprland/fuzzel"                   "$HOME/.config/fuzzel"
-    link_config "$SCRIPT_DIR/hyprland/mako"                     "$HOME/.config/mako"
-    link_config "$SCRIPT_DIR/hyprland/ghostty"                  "$HOME/.config/ghostty"
-    link_config "$SCRIPT_DIR/hyprland/helium-browser-flags.conf" "$HOME/.config/helium-browser-flags.conf"
-    mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
-    cp -f "$SCRIPT_DIR/hyprland/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
-    cp -f "$SCRIPT_DIR/hyprland/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
-    command -v gsettings >/dev/null 2>&1 && gsettings set org.gnome.desktop.interface gtk-enable-primary-paste true || true
-    command -v xdg-settings >/dev/null 2>&1 && [ -f /usr/share/applications/helium.desktop ] && xdg-settings set default-web-browser helium.desktop || true
-else
-    echo "==> Linking KDE Plasma 6 configs..."
-    link_config "$SCRIPT_DIR/kde/keybinds.conf" "$HOME/.config/keybinds.conf"
-
-    if [ -d "$SCRIPT_DIR/kde/widgets/wt-btop-monitor" ]; then
-        mkdir -p "$HOME/.local/share/plasma/plasmoids"
-        if command -v kpackagetool6 >/dev/null 2>&1; then
-            kpackagetool6 --type Plasma/Applet --upgrade "$SCRIPT_DIR/kde/widgets/wt-btop-monitor" 2>/dev/null || \
-            kpackagetool6 --type Plasma/Applet --install "$SCRIPT_DIR/kde/widgets/wt-btop-monitor" 2>/dev/null || true
-        fi
-    fi
-
-    "$HOME/.local/bin/wt-rust" keybinds sync
-fi
-
-echo "==> WT-Dots installation complete!"
+echo "==> WT-Dots Hyprland installation complete!"

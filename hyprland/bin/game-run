@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Universal NVIDIA PRIME + Vulkan launcher for Steam, Lutris, Heroic, and native games
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __VK_LAYER_NV_optimus=NVIDIA_only
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+export __GL_MaxFramesAllowed=1
+
+if command -v gamemoderun >/dev/null 2>&1; then
+    exec gamemoderun "$@"
+fi
+exec "$@"

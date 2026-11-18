@@ -1,5 +1,5 @@
 mod btop;
-mod keybinds;
+mod music;
 mod popup;
 mod theme;
 mod wallpaper;
@@ -9,7 +9,7 @@ use std::env;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: wt-rust <wallpaper|theme|popup|keybinds|btop-stats>");
+        eprintln!("Usage: wt-rust <wallpaper|theme|popup|music|btop-stats>");
         return;
     }
 
@@ -17,8 +17,8 @@ fn main() {
         "wallpaper" => wallpaper::handle_wallpaper(&args[2..]),
         "theme" => theme::handle_theme(&args[2..]),
         "popup" => popup::handle_popup(&args[2..]),
-        "keybinds" => keybinds::handle_keybinds(&args[2..]),
         "btop-stats" => btop::handle_stats(&args[2..]),
+        "music" => music::handle_music(&args[2..]),
         _ => eprintln!("Unknown command: {}", args[1]),
     }
 }

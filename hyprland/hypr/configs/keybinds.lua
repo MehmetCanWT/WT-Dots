@@ -4,8 +4,8 @@ local d           = rawget(_G, "WT_DEFAULTS") or {}
 local mainMod     = d.mod or "ALT"
 local terminal    = d.terminal or "ghostty"
 local fileManager = d.file_manager or "dolphin"
-local browser     = d.browser or "helium-browser"
-local launcher    = d.launcher or "fuzzel"
+local browser     = d.browser or "zen-browser"
+local launcher    = d.launcher or "pkill rofi || rofi -show drun"
 local wallpaper   = d.wallpaper_picker or "wt-rust wallpaper select"
 
 -- Applications & System
@@ -15,7 +15,7 @@ hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + W",      hl.dsp.exec_cmd(wallpaper))
 hl.bind(mainMod .. " + L",      hl.dsp.exec_cmd("hyprlock"))
-hl.bind(mainMod .. " + M",      hl.dsp.exit())
+hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("hyprshutdown -t 'Logging out...'"))
 
 -- Window Management
 hl.bind(mainMod .. " + Q", hl.dsp.window.close())

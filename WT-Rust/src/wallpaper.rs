@@ -1033,32 +1033,7 @@ pub fn apply_wallpaper_with_palette(wallpaper_path: &Path, cached_palette: Optio
     };
     let abs_str = abs_path.to_string_lossy();
 
-    // 1. Set Desktop Wallpaper (Hyprland or KDE Plasma)
-    if crate::theme::is_hyprland() {
-        crate::theme::set_hyprland_wallpaper(&abs_str);
-    } else {
-        let script = format!(
-            r#"var allDesktops = desktops();
-for (var i = 0; i < allDesktops.length; i++) {{
-    var d = allDesktops[i];
-    d.wallpaperPlugin = "org.kde.image";
-    d.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");
-    d.writeConfig("Image", "file://{}");
-}}"#,
-            abs_str
-        );
-
-        let _ = Command::new(crate::theme::qdbus_cmd())
-            .args([
-                "org.kde.plasmashell",
-                "/PlasmaShell",
-                "org.kde.PlasmaShell.evaluateScript",
-                &script,
-            ])
-            .status();
-    }
-
-    // 2. Extract Palette (or reuse pre-computed palette) & update themes
+    // 1. Extract Palette (or reuse pre-computed palette) & apply wallpaper + themes once
     let owned_pal;
     let pal = match cached_palette {
         Some(p) => p,

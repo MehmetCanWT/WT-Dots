@@ -1,77 +1,42 @@
-# WT-Dots
+# WT-Dots (Hyprland)
 
-Modular dotfiles for **KDE Plasma 6 (Wayland)** featuring an ultra-fast hardware-accelerated companion helper & wallpaper selector written in **Pure Rust** (`wt-rust`), a native BTOP-style system monitor Plasmoid widget, and custom **RustFetch** system info configs.
+Personal **Hyprland 0.57+ (Native Lua)** dotfiles featuring **WT-Rust**, a pure-Rust companion suite for dynamic wallpaper theming, control center popups, and live synced lyrics.
 
----
+## Structure
 
-## Architecture & Features
+- `hyprland/hypr/` — Hyprland Lua config (`hyprland.lua`, `configs/keybinds.lua`, `configs/rules.lua`, `configs/theme.lua`), `hyprpaper.conf`, `hypridle.conf`, `hyprlock.conf`, and helper scripts (`screenshot.sh`, `show-desktop.sh`, `media-step.sh`).
+- `hyprland/waybar/` — HANCORE `V1.9c`-inspired Waybar layout (`config.jsonc`, `style.css`, dynamic `colors.css`).
+- `hyprland/rofi/` — HyDE `style_10`-inspired Rofi Spotlight launcher with pre-scaled live wallpaper header (`config.rasi`, dynamic `theme.rasi`).
+- `hyprland/mako/` — Mako notification daemon configuration (`config`, dynamic `colors`).
+- `hyprland/ghostty/` — Ghostty terminal config and dynamic theme.
+- `hyprland/bin/game-run` — NVIDIA PRIME + Vulkan offload launcher for hybrid iGPU/dGPU laptops.
+- `WT-Rust/` — Pure-Rust companion (`wt-rust`):
+  - `wallpaper select` — GPU-accelerated wallpaper carousel (`eframe`/`egui`).
+  - `theme apply <img_path>` — Extracts palette and syncs Hyprland, Waybar, Rofi, Mako, Hyprlock, Ghostty, Kitty, and GTK3/GTK4.
+  - `popup <volume|wifi|bluetooth|power>` — Top-right/top-left Bento control center popups.
+  - `music --waybar` — Event-driven MPRIS + LRCLIB synced lyrics with character-level glow wave.
+  - `btop-stats --waybar` — Lightweight CPU/RAM telemetry for Waybar.
+- `fonts/0xProto/` — Bundled `0xProto Nerd Font`.
+- `Wallpapers/` — Bundled desktop wallpapers.
 
-- **KDE Plasma 6 Native Taskbar & BTOP Widget (`wt-btop-monitor`)**:
-  - Native Plasma 6 plasmoid applet with compact taskbar meters (CPU, RAM, GPU) and full expandable pop-up panel.
-  - Sub-millisecond stats collection powered directly by `wt-rust btop-stats` in native machine code (no runtime overhead, minimal CPU/battery impact).
-  - Dynamic color theme adaptation reacting live to wallpaper palette changes.
-  - Bilingual localization: Automatically detects system language (Turkish or English).
-  - Accurate metrics: Per-core CPU load, temperature, frequency, RAM & SWAP, disk usage (Bazzite atomic ostree & standard Linux support), NVIDIA GPU telemetry, real-time network transfer rates, and top active processes.
-
-- **`wt-rust` (`WT-Rust`)**:
-  - Single-binary Rust companion replacing external shell/Python scripts:
-  - `wt-rust wallpaper [select|apply <path>]`: Hardware-accelerated (`eframe`/`egui` + Wayland + Glow) fullscreen wallpaper carousel selector with smooth crossfade and cached thumbnails.
-  - `wt-rust theme [get <path> | apply [path]]`: Dominant HSL palette extraction and full-system theme synchronization across KDE Plasma 6 (.colors scheme & window decorations), GTK 3 & GTK 4, and Kitty terminal (`current-theme.conf`).
-  - `wt-rust keybinds [sync|watch]`: Declarative keybinding sync from `keybinds.conf` directly into KDE Plasma 6 global shortcuts.
-  - `wt-rust btop-stats`: High-performance JSON system telemetry generator for the Plasma monitor widget.
-
-- **RustFetch (`rustfetch`)**:
-  - Pre-configured `config.toml` for blazing fast terminal system info.
-  - Bundled custom high-resolution logos in `rustfetch/logos/` with dynamic color extraction.
-
----
-
-## Directory Structure
-
-```
-WT-Dots/
-├── install.sh                  # One-shot idempotent installer & config linker
-├── keybinds.conf               # Declarative KDE Plasma 6 global shortcuts
-├── rustfetch/                  # RustFetch terminal info configuration
-│   ├── config.toml
-│   └── logos/                  # Custom logos & color configurations
-├── widgets/                    # Native Plasma 6 widgets
-│   ├── wt-btop-monitor/        # QML source files
-│   └── wt-btop-monitor.plasmoid# Packaged Plasma 6 applet
-├── WT-Rust/                    # Pure Rust companion binary & GUI selector
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs
-│       ├── btop.rs
-│       ├── keybinds.rs
-│       ├── theme.rs
-│       └── wallpaper.rs
-├── Wallpapers/                 # Bundled wallpaper collection
-└── README.md
-```
-
----
-
-## Installation & Setup
-
-### Automated Setup
-
-Run the installer from within the cloned repository:
+## Installation
 
 ```bash
-./install.sh
+git clone https://github.com/MehmetCanWT/WT-Dots.git ~/WT-Dots
+cd ~/WT-Dots && ./install.sh
 ```
 
-The script will:
-1. Verify and install any missing system dependencies.
-2. Build `wt-rust` in release mode and install it to `~/.local/bin/wt-rust`.
-3. Symlink `keybinds.conf` and `rustfetch` into `~/.config/`.
-4. Copy bundled wallpapers to your pictures directory.
-5. Install and register the `wt-btop-monitor` Plasma 6 widget.
-6. Synchronize declarative keybindings with KDE.
+## Keybindings (`ALT` as main modifier)
 
----
-
-## License
-
-MIT
+| Keybind | Action |
+| :--- | :--- |
+| `Alt + Space` | Rofi app launcher |
+| `Alt + Enter` | Ghostty terminal |
+| `Alt + E` | Dolphin file manager |
+| `Alt + B` | Zen Browser |
+| `Alt + W` | `wt-rust` wallpaper selector |
+| `Alt + D` | Show desktop toggle |
+| `Alt + V` / `Alt + F` | Toggle floating / Fullscreen |
+| `Alt + Q` | Close active window |
+| `Alt + L` / `Alt + M` | Lock (`hyprlock`) / Graceful exit (`hyprshutdown`) |
+| `Print` / `Shift + Print` | Region / Full screenshot (`~/Pictures/Screenshots` + clipboard) |

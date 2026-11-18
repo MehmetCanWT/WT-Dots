@@ -20,12 +20,16 @@ const POPUP_SOCK: &str = "/tmp/wt-rust-popup.sock";
 pub enum PopupMode {
     Volume,
     Wifi,
+    Bluetooth,
+    Power,
 }
 
 impl PopupMode {
     fn from_arg(arg: Option<&str>) -> Self {
         match arg {
             Some("wifi") => Self::Wifi,
+            Some("bluetooth") | Some("bt") => Self::Bluetooth,
+            Some("power") => Self::Power,
             _ => Self::Volume,
         }
     }
@@ -34,6 +38,43 @@ impl PopupMode {
         match self {
             Self::Volume => "volume",
             Self::Wifi => "wifi",
+            Self::Bluetooth => "bluetooth",
+            Self::Power => "power",
+        }
+    }
+
+    fn size(self) -> [f32; 2] {
+        match self {
+            Self::Power => [320.0, 256.0],
+            Self::Volume => [380.0, 440.0],
+            Self::Wifi => [380.0, 460.0],
+            Self::Bluetooth => [380.0, 460.0],
+        }
+    }
+}
+
+fn install_nerd_font(ctx: &egui::Context) {
+    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+        return;
+    };
+    let candidates = [
+        home.join(".local/share/fonts/0xProto/0xProtoNerdFont-Regular.ttf"),
+        home.join("WT-Dots/fonts/0xProto/0xProtoNerdFont-Regular.ttf"),
+    ];
+    for path in candidates {
+        if let Ok(bytes) = fs::read(&path) {
+            let mut fonts = egui::FontDefinitions::default();
+            fonts.font_data.insert(
+                "nerd_proto".to_owned(),
+                egui::FontData::from_owned(bytes).into(),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .push("nerd_proto".to_owned());
+            ctx.set_fonts(fonts);
+            break;
         }
     }
 }
@@ -42,7 +83,24 @@ enum PopupEvent {
     AudioLoaded(AudioState),
     WifiLoaded(WifiState),
     WifiStatus(WifiState, String, bool),
+    BtLoaded(BtState),
+    BtStatus(BtState, String, bool),
     Trigger(PopupMode),
+}
+
+#[derive(Clone)]
+struct BtDevice {
+    mac: String,
+    name: String,
+    connected: bool,
+    paired: bool,
+    battery: Option<u8>,
+}
+
+#[derive(Clone, Default)]
+struct BtState {
+    powered: bool,
+    devices: Vec<BtDevice>,
 }
 
 #[derive(Clone, Default)]
@@ -391,6 +449,67 @@ fn mix_c32(a: (u8, u8, u8), b: (u8, u8, u8), weight_b: f32, alpha: u8) -> egui::
     )
 }
 
+fn query_bt_state() -> BtState {
+    let mut state = BtState::default();
+    if let Ok(out) = Command::new("bluetoothctl").arg("show").output() {
+        let s = String::from_utf8_lossy(&out.stdout);
+        state.powered = s.lines().any(|l| l.trim() == "Powered: yes");
+    }
+    if !state.powered {
+        return state;
+    }
+
+    if let Ok(out) = Command::new("bluetoothctl").arg("devices").output() {
+        let s = String::from_utf8_lossy(&out.stdout);
+        for line in s.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("Device ") {
+                let mut parts = rest.splitn(2, ' ');
+                let mac = parts.next().unwrap_or("").trim().to_string();
+                let name = parts.next().unwrap_or("").trim().to_string();
+                if mac.is_empty() || name.is_empty() {
+                    continue;
+                }
+                let mut connected = false;
+                let mut paired = false;
+                let mut battery = None;
+                if let Ok(info_out) = Command::new("bluetoothctl").args(["info", &mac]).output() {
+                    let info = String::from_utf8_lossy(&info_out.stdout);
+                    for il in info.lines() {
+                        let t = il.trim();
+                        if t == "Connected: yes" {
+                            connected = true;
+                        } else if t == "Paired: yes" {
+                            paired = true;
+                        } else if let Some(b) = t.strip_prefix("Battery Percentage:") {
+                            if let Some(open) = b.find('(')
+                                && let Some(close) = b.find(')')
+                            {
+                                battery = b[open + 1..close].trim().parse::<u8>().ok();
+                            }
+                        }
+                    }
+                }
+                state.devices.push(BtDevice {
+                    mac,
+                    name,
+                    connected,
+                    paired,
+                    battery,
+                });
+            }
+        }
+    }
+
+    state.devices.sort_by(|a, b| {
+        b.connected
+            .cmp(&a.connected)
+            .then_with(|| b.paired.cmp(&a.paired))
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    state
+}
+
 struct PopupApp {
     mode: PopupMode,
     pal: Palette,
@@ -400,6 +519,9 @@ struct PopupApp {
     wifi: WifiState,
     wifi_loading: bool,
     wifi_status: Option<(String, bool)>,
+    bt: BtState,
+    bt_loading: bool,
+    bt_status: Option<(String, bool)>,
     pending_pw_ssid: Option<String>,
     password_buf: String,
     show_password: bool,
@@ -426,6 +548,9 @@ impl PopupApp {
             wifi: WifiState::default(),
             wifi_loading: false,
             wifi_status: None,
+            bt: BtState::default(),
+            bt_loading: false,
+            bt_status: None,
             pending_pw_ssid: None,
             password_buf: String::new(),
             show_password: false,
@@ -451,6 +576,17 @@ impl PopupApp {
                     let _ = tx.send(PopupEvent::WifiLoaded(query_wifi_state(rescan_wifi)));
                 });
             }
+            PopupMode::Bluetooth => {
+                thread::spawn(move || {
+                    if rescan_wifi {
+                        let _ = Command::new("bluetoothctl")
+                            .args(["--timeout", "5", "scan", "on"])
+                            .status();
+                    }
+                    let _ = tx.send(PopupEvent::BtLoaded(query_bt_state()));
+                });
+            }
+            PopupMode::Power => {}
         }
     }
 
@@ -626,126 +762,112 @@ impl PopupApp {
         let text = c32(&self.pal.text_color, 255);
         let dim = c32(&self.pal.text_dim, 255);
         let accent = c32(&self.pal.accent, 255);
-
         let pal = self.pal.clone();
-        let default_sink_name = self.audio.default_sink_name.clone();
-        if let Some(sink) = self
-            .audio
-            .sinks
-            .iter_mut()
-            .find(|s| s.id == default_sink_name)
-        {
-            let sink_id = sink.id.clone();
-            let sink_label = sink.label.clone();
-            let mut pct = sink.percent;
-            let muted = sink.muted;
-            let (toggled, changed) =
-                Self::draw_slider_row(&pal, ui, &sink_label, &mut pct, muted, "OUT");
-            sink.percent = pct;
-            if toggled {
-                let _ = run_cmd_quiet("pactl", &["set-sink-mute", &sink_id, "toggle"]);
-                self.trigger_refresh(false);
-            }
-            if let Some(p) = changed {
-                let arg = format!("{}%", p);
-                let _ = run_cmd_quiet("pactl", &["set-sink-volume", &sink_id, &arg]);
-            }
-        } else if self.audio.sinks.is_empty() {
-            ui.label(egui::RichText::new("No active audio output found.").color(dim));
-        }
 
-        if let Some(src) = self.audio.sources.iter_mut().find(|s| s.is_default) {
-            ui.add_space(6.0);
-            let src_id = src.id.clone();
-            let src_label = src.label.clone();
-            let mut pct = src.percent;
-            let muted = src.muted;
-            let (toggled, changed) =
-                Self::draw_slider_row(&pal, ui, &src_label, &mut pct, muted, "MIC");
-            src.percent = pct;
-            if toggled {
-                let _ = run_cmd_quiet("pactl", &["set-source-mute", &src_id, "toggle"]);
-                self.trigger_refresh(false);
-            }
-            if let Some(p) = changed {
-                let arg = format!("{}%", p);
-                let _ = run_cmd_quiet("pactl", &["set-source-volume", &src_id, &arg]);
-            }
-        }
-
-        if self.audio.sinks.len() > 1 {
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new("OUTPUT DEVICES")
-                    .size(10.5)
-                    .strong()
-                    .color(dim),
-            );
-            ui.add_space(3.0);
-            let sinks_copy = self.audio.sinks.clone();
-            for s in sinks_copy {
-                let fill = if s.is_default {
-                    c32(&self.pal.accent, 42)
-                } else {
-                    mix_c32(bg_rgb, (255, 255, 255), 0.05, 210)
-                };
-                let prefix = if s.is_default { "●  " } else { "○  " };
-                let btn = egui::Button::new(
-                    egui::RichText::new(format!("{}{}", prefix, s.label))
-                        .size(12.0)
-                        .color(if s.is_default { accent } else { text }),
-                )
-                .fill(fill)
-                .stroke(egui::Stroke::new(
-                    1.0,
-                    if s.is_default {
-                        c32(&self.pal.accent, 110)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    },
-                ))
-                .corner_radius(egui::CornerRadius::same(9))
-                .min_size(egui::vec2(ui.available_width(), 28.0));
-
-                if ui.add(btn).clicked() && !s.is_default {
-                    let _ = run_cmd_quiet("pactl", &["set-default-sink", &s.id]);
+        egui::ScrollArea::vertical().max_height(355.0).show(ui, |ui| {
+            // 1. OUTPUT (Speakers / Headphones)
+            ui.label(egui::RichText::new("OUTPUT (SPEAKER)").size(10.5).strong().color(dim));
+            ui.add_space(4.0);
+            let default_sink_name = self.audio.default_sink_name.clone();
+            if let Some(sink) = self.audio.sinks.iter_mut().find(|s| s.id == default_sink_name) {
+                let sink_id = sink.id.clone();
+                let sink_label = sink.label.clone();
+                let mut pct = sink.percent;
+                let muted = sink.muted;
+                let (toggled, changed) =
+                    Self::draw_slider_row(&pal, ui, &sink_label, &mut pct, muted, "󰕾");
+                sink.percent = pct;
+                if toggled {
+                    let _ = run_cmd_quiet("pactl", &["set-sink-mute", &sink_id, "toggle"]);
                     self.trigger_refresh(false);
                 }
+                if let Some(p) = changed {
+                    let arg = format!("{}%", p);
+                    let _ = run_cmd_quiet("pactl", &["set-sink-volume", &sink_id, &arg]);
+                }
+            } else if self.audio.sinks.is_empty() {
+                ui.label(egui::RichText::new("No active audio output found.").color(dim));
             }
-        }
 
-        if !self.audio.streams.is_empty() {
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new("APPLICATIONS")
-                    .size(10.5)
-                    .strong()
-                    .color(dim),
-            );
-            ui.add_space(3.0);
-            egui::ScrollArea::vertical()
-                .max_height(150.0)
-                .show(ui, |ui| {
-                    for idx in 0..self.audio.streams.len() {
-                        let sid = self.audio.streams[idx].id.clone();
-                        let label = self.audio.streams[idx].label.clone();
-                        let mut pct = self.audio.streams[idx].percent;
-                        let muted = self.audio.streams[idx].muted;
-                        let (toggled, changed) =
-                            Self::draw_slider_row(&pal, ui, &label, &mut pct, muted, "APP");
-                        self.audio.streams[idx].percent = pct;
-                        if toggled {
-                            let _ = run_cmd_quiet("pactl", &["set-sink-input-mute", &sid, "toggle"]);
-                            self.trigger_refresh(false);
-                        }
-                        if let Some(p) = changed {
-                            let arg = format!("{}%", p);
-                            let _ = run_cmd_quiet("pactl", &["set-sink-input-volume", &sid, &arg]);
-                        }
-                        ui.add_space(5.0);
+            if self.audio.sinks.len() > 1 {
+                ui.add_space(4.0);
+                let sinks_copy = self.audio.sinks.clone();
+                for s in sinks_copy {
+                    let fill = if s.is_default {
+                        c32(&self.pal.accent, 42)
+                    } else {
+                        mix_c32(bg_rgb, (255, 255, 255), 0.05, 210)
+                    };
+                    let prefix = if s.is_default { "●  " } else { "○  " };
+                    let btn = egui::Button::new(
+                        egui::RichText::new(format!("{}{}", prefix, s.label))
+                            .size(12.0)
+                            .color(if s.is_default { accent } else { text }),
+                    )
+                    .fill(fill)
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        if s.is_default { c32(&self.pal.accent, 110) } else { egui::Color32::TRANSPARENT },
+                    ))
+                    .corner_radius(egui::CornerRadius::same(9))
+                    .min_size(egui::vec2(ui.available_width(), 26.0));
+
+                    if ui.add(btn).clicked() && !s.is_default {
+                        let _ = run_cmd_quiet("pactl", &["set-default-sink", &s.id]);
+                        self.trigger_refresh(false);
                     }
-                });
-        }
+                }
+            }
+
+            // 2. INPUT (Microphone)
+            ui.add_space(10.0);
+            ui.label(egui::RichText::new("INPUT (MICROPHONE)").size(10.5).strong().color(dim));
+            ui.add_space(4.0);
+            if let Some(src) = self.audio.sources.iter_mut().find(|s| s.is_default) {
+                let src_id = src.id.clone();
+                let src_label = src.label.clone();
+                let mut pct = src.percent;
+                let muted = src.muted;
+                let (toggled, changed) =
+                    Self::draw_slider_row(&pal, ui, &src_label, &mut pct, muted, "󰍬");
+                src.percent = pct;
+                if toggled {
+                    let _ = run_cmd_quiet("pactl", &["set-source-mute", &src_id, "toggle"]);
+                    self.trigger_refresh(false);
+                }
+                if let Some(p) = changed {
+                    let arg = format!("{}%", p);
+                    let _ = run_cmd_quiet("pactl", &["set-source-volume", &src_id, &arg]);
+                }
+            } else {
+                ui.label(egui::RichText::new("No active microphone found.").color(dim));
+            }
+
+            // 3. APPLICATIONS
+            if !self.audio.streams.is_empty() {
+                ui.add_space(10.0);
+                ui.label(egui::RichText::new("APPLICATIONS").size(10.5).strong().color(dim));
+                ui.add_space(4.0);
+                for idx in 0..self.audio.streams.len() {
+                    let sid = self.audio.streams[idx].id.clone();
+                    let label = self.audio.streams[idx].label.clone();
+                    let mut pct = self.audio.streams[idx].percent;
+                    let muted = self.audio.streams[idx].muted;
+                    let (toggled, changed) =
+                        Self::draw_slider_row(&pal, ui, &label, &mut pct, muted, "󰎈");
+                    self.audio.streams[idx].percent = pct;
+                    if toggled {
+                        let _ = run_cmd_quiet("pactl", &["set-sink-input-mute", &sid, "toggle"]);
+                        self.trigger_refresh(false);
+                    }
+                    if let Some(p) = changed {
+                        let arg = format!("{}%", p);
+                        let _ = run_cmd_quiet("pactl", &["set-sink-input-volume", &sid, &arg]);
+                    }
+                    ui.add_space(5.0);
+                }
+            }
+        });
     }
 
     fn connect_wifi(&mut self, ssid: String, password: Option<String>) {
@@ -1088,6 +1210,15 @@ impl eframe::App for PopupApp {
                     self.wifi_loading = false;
                     self.wifi_status = Some((msg, is_err));
                 }
+                PopupEvent::BtLoaded(st) => {
+                    self.bt = st;
+                    self.bt_loading = false;
+                }
+                PopupEvent::BtStatus(st, msg, is_err) => {
+                    self.bt = st;
+                    self.bt_loading = false;
+                    self.bt_status = Some((msg, is_err));
+                }
                 PopupEvent::Trigger(requested) => {
                     if requested == self.mode {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -1097,6 +1228,10 @@ impl eframe::App for PopupApp {
                     self.pal = get_current_palette();
                     self.pending_pw_ssid = None;
                     self.wifi_status = None;
+                    self.bt_status = None;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(
+                        self.mode.size().into(),
+                    ));
                     self.trigger_refresh(false);
                 }
             }
@@ -1126,6 +1261,8 @@ impl eframe::App for PopupApp {
         let title = match self.mode {
             PopupMode::Volume => "Audio Mixer",
             PopupMode::Wifi => "Wi-Fi & Network",
+            PopupMode::Bluetooth => "Bluetooth",
+            PopupMode::Power => "Power & Session",
         };
         let subtitle = match self.mode {
             PopupMode::Volume => "PipeWire • 5% precision steps".to_string(),
@@ -1140,6 +1277,19 @@ impl eframe::App for PopupApp {
                     "Wi-Fi Disabled".to_string()
                 }
             }
+            PopupMode::Bluetooth => {
+                if self.bt.powered {
+                    let count = self.bt.devices.iter().filter(|d| d.connected).count();
+                    if count > 0 {
+                        format!("Enabled • {} connected", count)
+                    } else {
+                        "Bluetooth Enabled".to_string()
+                    }
+                } else {
+                    "Bluetooth Disabled".to_string()
+                }
+            }
+            PopupMode::Power => "Hyprland • Graceful Shutdown".to_string(),
         };
 
         egui::CentralPanel::default()
@@ -1151,22 +1301,9 @@ impl eframe::App for PopupApp {
                     .inner_margin(egui::Margin::same(14)),
             )
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new(title).size(15.5).strong().color(text));
-                        ui.label(egui::RichText::new(subtitle).size(11.0).color(dim));
-                    });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let close_btn = egui::Button::new(
-                            egui::RichText::new("X").size(12.0).strong().color(text),
-                        )
-                        .fill(mix_c32(parse_hex_rgb(&self.pal.bg), (255, 255, 255), 0.08, 240))
-                        .corner_radius(egui::CornerRadius::same(8))
-                        .min_size(egui::vec2(26.0, 26.0));
-                        if ui.add(close_btn).clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(title).size(15.5).strong().color(text));
+                    ui.label(egui::RichText::new(subtitle).size(11.0).color(dim));
                 });
 
                 ui.add_space(10.0);
@@ -1174,14 +1311,302 @@ impl eframe::App for PopupApp {
                 match self.mode {
                     PopupMode::Volume => self.render_volume_ui(ui),
                     PopupMode::Wifi => self.render_wifi_ui(ui),
+                    PopupMode::Bluetooth => self.render_bt_ui(ui),
+                    PopupMode::Power => self.render_power_ui(ui, &ctx),
                 }
             });
     }
 }
 
+impl PopupApp {
+    fn draw_bento_tile(
+        &self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        width: f32,
+        height: f32,
+        icon: &str,
+        label: &str,
+        desc: &str,
+        accent_col: egui::Color32,
+        fill_col: egui::Color32,
+        cmd: &[&str],
+    ) {
+        let text = c32(&self.pal.text_color, 255);
+        let dim = c32(&self.pal.text_dim, 255);
+        let border_col = egui::Color32::from_rgba_unmultiplied(
+            accent_col.r(),
+            accent_col.g(),
+            accent_col.b(),
+            85,
+        );
+
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::click());
+        let bg = if resp.hovered() {
+            mix_c32(
+                (fill_col.r(), fill_col.g(), fill_col.b()),
+                (accent_col.r(), accent_col.g(), accent_col.b()),
+                0.22,
+                250,
+            )
+        } else {
+            fill_col
+        };
+
+        ui.painter().rect(
+            rect,
+            egui::CornerRadius::same(14),
+            bg,
+            egui::Stroke::new(if resp.hovered() { 1.4 } else { 1.0 }, border_col),
+            egui::StrokeKind::Inside,
+        );
+
+        let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(10.0)));
+        child_ui.vertical_centered(|ui| {
+            ui.add_space((height - 64.0).max(2.0) * 0.5);
+            ui.label(egui::RichText::new(icon).size(24.0).color(accent_col));
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new(label).size(13.5).strong().color(text));
+            ui.label(egui::RichText::new(desc).size(10.5).color(dim));
+        });
+
+        if resp.hovered() {
+            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        if resp.clicked() {
+            let _ = Command::new(cmd[0]).args(&cmd[1..]).spawn();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+
+    fn render_power_ui(&self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let base_rgb = parse_hex_rgb(&self.pal.bg);
+        let accent_rgb = parse_hex_rgb(&self.pal.accent);
+        let accent = c32(&self.pal.accent, 255);
+        let text = c32(&self.pal.text_color, 255);
+        let dim = c32(&self.pal.text_dim, 255);
+
+        let danger_col = egui::Color32::from_rgb(243, 139, 168);
+        let reboot_col = egui::Color32::from_rgb(250, 179, 135);
+        let danger_bg = mix_c32(base_rgb, (243, 139, 168), 0.14, 242);
+        let reboot_bg = mix_c32(base_rgb, (250, 179, 135), 0.12, 242);
+        let logout_bg = mix_c32(base_rgb, accent_rgb, 0.14, 242);
+
+        let avail_w = ui.available_width();
+        let gap = 10.0;
+        let tile_w = (avail_w - gap) * 0.5;
+
+        // Top row: 2 Bento square tiles (Shut Down + Reboot)
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = gap;
+            self.draw_bento_tile(
+                ui,
+                ctx,
+                tile_w,
+                104.0,
+                "⏻",
+                "Shut Down",
+                "Power off PC",
+                danger_col,
+                danger_bg,
+                &["hyprshutdown", "-t", "Shutting down...", "-p", "systemctl poweroff"],
+            );
+            self.draw_bento_tile(
+                ui,
+                ctx,
+                tile_w,
+                104.0,
+                "󰜉",
+                "Reboot",
+                "Restart PC",
+                reboot_col,
+                reboot_bg,
+                &["hyprshutdown", "-t", "Rebooting...", "-p", "systemctl reboot"],
+            );
+        });
+
+        ui.add_space(gap);
+
+        // Bottom row: full-width Bento tile (Log Out)
+        let (rect, resp) =
+            ui.allocate_exact_size(egui::vec2(avail_w, 58.0), egui::Sense::click());
+        let bg = if resp.hovered() {
+            mix_c32(base_rgb, accent_rgb, 0.28, 250)
+        } else {
+            logout_bg
+        };
+        ui.painter().rect(
+            rect,
+            egui::CornerRadius::same(14),
+            bg,
+            egui::Stroke::new(
+                if resp.hovered() { 1.4 } else { 1.0 },
+                c32(&self.pal.accent, 90),
+            ),
+            egui::StrokeKind::Inside,
+        );
+
+        let mut row_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(egui::vec2(16.0, 10.0))));
+        row_ui.horizontal_centered(|ui| {
+            ui.label(egui::RichText::new("󰍃").size(22.0).color(accent));
+            ui.add_space(10.0);
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new("Log Out").size(14.0).strong().color(text));
+                ui.label(egui::RichText::new("Exit Hyprland session").size(10.5).color(dim));
+            });
+        });
+
+        if resp.hovered() {
+            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        if resp.clicked() {
+            let _ = Command::new("hyprshutdown")
+                .args(["-t", "Logging out..."])
+                .spawn();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+
+    fn render_bt_ui(&mut self, ui: &mut egui::Ui) {
+        let base_rgb = parse_hex_rgb(&self.pal.bg);
+        let accent = c32(&self.pal.accent, 255);
+        let text = c32(&self.pal.text_color, 255);
+        let dim = c32(&self.pal.text_dim, 255);
+        let card_bg = mix_c32(base_rgb, (255, 255, 255), 0.05, 235);
+        let active_bg = mix_c32(base_rgb, parse_hex_rgb(&self.pal.accent), 0.16, 240);
+
+        ui.horizontal(|ui| {
+            let toggle_txt = if self.bt.powered { "󰂯  Bluetooth ON" } else { "󰂲  Bluetooth OFF" };
+            let toggle_btn = egui::Button::new(egui::RichText::new(toggle_txt).size(12.5).strong().color(text))
+                .fill(if self.bt.powered { active_bg } else { card_bg })
+                .corner_radius(egui::CornerRadius::same(10))
+                .min_size(egui::vec2(140.0, 32.0));
+            if ui.add(toggle_btn).clicked() && !self.bt_loading {
+                self.bt_loading = true;
+                let next = if self.bt.powered { "off" } else { "on" };
+                let tx = self.tx.clone();
+                thread::spawn(move || {
+                    let _ = Command::new("bluetoothctl").args(["power", next]).status();
+                    let _ = tx.send(PopupEvent::BtLoaded(query_bt_state()));
+                });
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let scan_txt = if self.bt_loading { "Scanning..." } else { "󰑐  Scan" };
+                let scan_btn = egui::Button::new(egui::RichText::new(scan_txt).size(12.0).color(accent))
+                    .fill(card_bg)
+                    .corner_radius(egui::CornerRadius::same(10))
+                    .min_size(egui::vec2(86.0, 32.0));
+                if ui.add(scan_btn).clicked() && !self.bt_loading {
+                    self.bt_loading = true;
+                    self.trigger_refresh(true);
+                }
+            });
+        });
+
+        if let Some((ref msg, is_err)) = self.bt_status {
+            ui.add_space(6.0);
+            let col = if is_err {
+                egui::Color32::from_rgb(243, 139, 168)
+            } else {
+                egui::Color32::from_rgb(166, 227, 161)
+            };
+            ui.label(egui::RichText::new(msg).size(11.5).color(col));
+        }
+
+        ui.add_space(10.0);
+
+        if !self.bt.powered {
+            ui.label(egui::RichText::new("Turn on Bluetooth to see devices.").size(12.5).color(dim));
+            return;
+        }
+
+        if self.bt.devices.is_empty() {
+            ui.label(egui::RichText::new("No devices found. Click Scan.").size(12.5).color(dim));
+            return;
+        }
+
+        egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 6.0;
+            for dev in self.bt.devices.clone() {
+                egui::Frame::new()
+                    .fill(if dev.connected { active_bg } else { card_bg })
+                    .stroke(egui::Stroke::new(1.0, c32(&self.pal.accent, if dev.connected { 110 } else { 40 })))
+                    .corner_radius(egui::CornerRadius::same(11))
+                    .inner_margin(egui::Margin::symmetric(12, 9))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(if dev.connected { "󰂱" } else { "󰂯" })
+                                    .size(16.0)
+                                    .color(if dev.connected { accent } else { dim }),
+                            );
+                            ui.add_space(6.0);
+                            ui.vertical(|ui| {
+                                ui.add(egui::Label::new(egui::RichText::new(&dev.name).size(13.0).strong().color(text)).truncate());
+                                let sub = match (dev.connected, dev.paired, dev.battery) {
+                                    (true, _, Some(b)) => format!("Connected • {}%", b),
+                                    (true, _, None) => "Connected".to_string(),
+                                    (false, true, _) => "Paired".to_string(),
+                                    (false, false, _) => dev.mac.clone(),
+                                };
+                                ui.label(egui::RichText::new(sub).size(10.5).color(dim));
+                            });
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let act_label = if dev.connected {
+                                    "Disconnect"
+                                } else if dev.paired {
+                                    "Connect"
+                                } else {
+                                    "Pair"
+                                };
+                                let btn = egui::Button::new(egui::RichText::new(act_label).size(11.5).color(text))
+                                    .fill(c32(&self.pal.accent, if dev.connected { 35 } else { 60 }))
+                                    .corner_radius(egui::CornerRadius::same(8));
+                                if ui.add(btn).clicked() && !self.bt_loading {
+                                    self.bt_loading = true;
+                                    let mac = dev.mac.clone();
+                                    let name = dev.name.clone();
+                                    let is_conn = dev.connected;
+                                    let is_paired = dev.paired;
+                                    let tx = self.tx.clone();
+                                    thread::spawn(move || {
+                                        let ok = if is_conn {
+                                            Command::new("bluetoothctl").args(["disconnect", &mac]).status().is_ok_and(|s| s.success())
+                                        } else {
+                                            if !is_paired {
+                                                let _ = Command::new("bluetoothctl").args(["pair", &mac]).status();
+                                                let _ = Command::new("bluetoothctl").args(["trust", &mac]).status();
+                                            }
+                                            Command::new("bluetoothctl").args(["connect", &mac]).status().is_ok_and(|s| s.success())
+                                        };
+                                        let msg = if ok {
+                                            if is_conn { format!("Disconnected {}", name) } else { format!("Connected to {}", name) }
+                                        } else {
+                                            format!("Failed action for {}", name)
+                                        };
+                                        let _ = tx.send(PopupEvent::BtStatus(query_bt_state(), msg, !ok));
+                                    });
+                                }
+                            });
+                        });
+                    });
+            }
+        });
+    }
+}
+
 pub fn handle_popup(args: &[String]) {
     let mode = PopupMode::from_arg(args.first().map(|s| s.as_str()));
-    let Some((listener, sock_guard)) = bind_single_instance_socket(POPUP_SOCK, |mut stream| {
+    let sock_path = match mode {
+        PopupMode::Power => "/tmp/wt-rust-power.sock",
+        _ => POPUP_SOCK,
+    };
+    let app_id = match mode {
+        PopupMode::Power => "wt-popup-power",
+        _ => "wt-popup",
+    };
+    let Some((listener, sock_guard)) = bind_single_instance_socket(sock_path, |mut stream| {
         let _ = stream.write_all(mode.as_str().as_bytes());
     }) else {
         return;
@@ -1208,21 +1633,26 @@ pub fn handle_popup(args: &[String]) {
         }
     });
 
+    let init_size = mode.size();
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_app_id("wt-popup")
+            .with_app_id(app_id)
             .with_title("WT Control Center")
             .with_decorations(false)
             .with_transparent(true)
             .with_resizable(false)
-            .with_inner_size([380.0, 440.0]),
+            .with_inner_size(init_size),
         ..Default::default()
     };
 
     let _ = eframe::run_native(
         "WT Control Center",
         native_options,
-        Box::new(move |_cc| Ok(Box::new(PopupApp::new(mode, tx, rx, ctx_slot, sock_guard)))),
+        Box::new(move |cc| {
+            install_nerd_font(&cc.egui_ctx);
+            Ok(Box::new(PopupApp::new(mode, tx, rx, ctx_slot, sock_guard)))
+        }),
     );
 }
 

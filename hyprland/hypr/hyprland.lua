@@ -9,8 +9,8 @@ WT_DEFAULTS = {
     mod              = "ALT",
     terminal         = "ghostty",
     file_manager     = "dolphin",
-    browser          = "helium-browser",
-    launcher         = "fuzzel",
+    browser          = "zen-browser",
+    launcher         = "pkill rofi || rofi -show drun",
     wallpaper_picker = "wt-rust wallpaper select",
 }
 
@@ -54,6 +54,9 @@ end)
 
 hl.env("BROWSER", WT_DEFAULTS.browser)
 
+-- Dual-GPU laptop: force Intel iGPU (00:02.0) as primary compositor GPU, NVIDIA dGPU (01:00.0) as secondary fallback
+hl.env("AQ_DRM_DEVICES", "/dev/dri/by-path/pci-0000:00:02.0-card:/dev/dri/by-path/pci-0000:01:00.0-card")
+
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
@@ -79,6 +82,13 @@ hl.config({
         resize_on_border = true,
         allow_tearing    = false,
         layout           = "dwindle",
+
+        snap = {
+            enabled      = true,
+            respect_gaps = true,
+            monitor_gap  = 10,
+            window_gap   = 10,
+        },
     },
 
     decoration = {
@@ -116,13 +126,33 @@ hl.config({
     },
 
     misc = {
-        force_default_wallpaper = 0,
-        disable_hyprland_logo   = false,
-        middle_click_paste      = true,
+        force_default_wallpaper  = 0,
+        disable_hyprland_logo    = true,
+        disable_splash_rendering = true,
+        background_color         = 0x11111b,
+        middle_click_paste       = true,
+        float_force_onscreen     = true,
+        new_float_force_onscreen = true,
     },
 
     layers = {
         allow_new_top_layers_over_existing_fullscreen = true,
+    },
+
+    render = {
+        direct_scanout = 0,
+    },
+
+    xwayland = {
+        force_zero_scaling = true,
+    },
+
+    cursor = {
+        no_hardware_cursors = 2,
+    },
+
+    debug = {
+        vfr = true,
     },
 
     input = {

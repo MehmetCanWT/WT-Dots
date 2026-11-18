@@ -1,91 +1,126 @@
 @import "colors.css";
 
 * {
-    font-family: "FantasqueSansM Nerd Font", sans-serif;
-    font-size: 13px;
-    border: none;
-    border-radius: 0;
+    font-family: "0xProto Nerd Font", "FantasqueSansM Nerd Font", sans-serif;
+    font-size: 12px;
+    font-weight: bold;
     min-height: 0;
 }
 
 window#waybar {
-    background: @wt_bg;
+    background-color: transparent;
     color: @wt_text;
-    border-bottom: 1px solid @wt_border;
 }
 
-#workspaces,
-#custom-btop,
-#clock,
-#backlight,
-#pulseaudio,
-#network,
-#battery,
-#tray {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    padding: 0 10px;
-    margin: 0;
-    transition: color 0.15s ease, background 0.15s ease;
-}
-
-#workspaces {
-    padding: 2px 6px;
-}
-
-#workspaces button {
-    padding: 0 8px;
+.modules-left {
+    border-radius: 3px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     margin: 2px;
+    background-color: @wt_bg;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.modules-center {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    margin: 0;
+}
+
+#custom-separator {
+    opacity: 0.25;
+    padding: 0 4px;
     color: @wt_text_dim;
-    background: transparent;
-    border-radius: 6px;
-    transition: all 0.2s ease;
 }
 
-#workspaces button:hover {
-    background: @wt_surface;
-    color: @wt_text;
+#custom-power {
+    color: #f38ba8;
+    font-size: 13px;
+    padding: 0 6px 0 8px;
 }
 
-#workspaces button.active {
-    background: @wt_accent_bg;
-    color: @wt_accent;
-    font-weight: bold;
-}
-
-#custom-btop {
-    color: @wt_accent;
-    border-left: 1px solid @wt_border;
-    margin: 7px 0 7px 6px;
-    padding: 0 12px;
-}
-
-#custom-btop:hover {
-    background: @wt_surface;
-    border-radius: 6px;
+#custom-power:hover {
+    color: #ffffff;
 }
 
 #clock {
+    padding: 0 6px;
     color: @wt_text;
-    font-weight: bold;
+}
+
+#workspaces {
+    margin: 2px 4px;
+    padding: 0;
+}
+
+#workspaces button {
+    color: @wt_text;
+    background-color: transparent;
+    padding: 0 6px;
+    margin: 2px 1px;
+    border-radius: 2px;
+    border: none;
+    transition: 0.2s ease-in-out;
+}
+
+#workspaces button.active {
+    background-color: @wt_accent;
+    color: #11111b;
+}
+
+#workspaces button:hover {
+    background-color: @wt_surface;
+    color: @wt_text;
+}
+
+#custom-music {
+    border-radius: 3px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin: 2px;
+    padding: 0 10px;
+    background-color: @wt_bg;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    color: @wt_text;
+}
+
+#custom-music.empty {
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+#backlight,
+#bluetooth,
+#network,
+#pulseaudio,
+#battery,
+#custom-btop,
+#tray {
+    border-radius: 3px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin: 2px;
+    padding: 0 8px;
+    background-color: @wt_bg;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    color: @wt_text;
 }
 
 #backlight {
     color: #f9e2af;
 }
 
-#pulseaudio {
+#bluetooth {
     color: @wt_accent;
 }
 
-#pulseaudio:hover,
-#network:hover {
-    background: @wt_surface;
-    border-radius: 6px;
-}
-
-#pulseaudio.muted {
+#bluetooth.off,
+#bluetooth.disabled {
     color: @wt_text_dim;
 }
 
@@ -97,6 +132,14 @@ window#waybar {
     color: #f38ba8;
 }
 
+#pulseaudio {
+    color: @wt_accent;
+}
+
+#pulseaudio.muted {
+    color: @wt_text_dim;
+}
+
 #battery {
     color: #a6e3a1;
 }
@@ -105,10 +148,25 @@ window#waybar {
     color: #fab387;
 }
 
-#battery.critical {
+#battery.critical:not(.charging) {
     color: #f38ba8;
 }
 
+#custom-btop {
+    color: @wt_text;
+}
+
 #tray {
-    padding: 0 10px;
+    padding: 0 6px;
+}
+
+tooltip {
+    padding: 6px;
+    background: @wt_bg;
+    border: 1px solid @wt_border;
+    border-radius: 5px;
+}
+
+tooltip label {
+    color: @wt_text;
 }

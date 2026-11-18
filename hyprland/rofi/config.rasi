@@ -1,0 +1,121 @@
+configuration {
+    modi:                        "drun,run,window";
+    show-icons:                  true;
+    display-drun:                "󰍉";
+    display-run:                 "󰆍";
+    display-window:              "󰖲";
+    drun-display-format:         "{name}";
+    window-format:               "{w}{t}";
+    font:                        "0xProto Nerd Font 10";
+    icon-theme:                  "breeze-dark";
+}
+
+@theme "~/.config/rofi/theme.rasi"
+
+* {
+    background-color: transparent;
+    text-color:       @main-fg;
+}
+
+window {
+    height:           30em;
+    width:            22em;
+    location:         center;
+    anchor:           center;
+    transparency:     "real";
+    fullscreen:       false;
+    enabled:          true;
+    cursor:           "default";
+    spacing:          0em;
+    padding:          0em;
+    border:           1px solid;
+    border-color:     @main-br;
+    border-radius:    1em;
+    background-color: @main-bg;
+}
+
+mainbox {
+    enabled:          true;
+    spacing:          0em;
+    padding:          0em;
+    orientation:      vertical;
+    children:         [ "inputbar", "listbox" ];
+    background-color: transparent;
+}
+
+inputbar {
+    enabled:          true;
+    spacing:          0.5em;
+    padding:          4.2em 1.2em 1.0em 1.2em;
+    children:         [ "entry" ];
+    background-color: @main-bg;
+    background-image: url("~/.cache/wt-rust/rofi_wall.jpg", width);
+    border-radius:    1em 1em 0em 0em;
+}
+
+entry {
+    enabled:           true;
+    padding:           0.45em 0.8em;
+    border-radius:     0.6em;
+    background-color:  rgba(16, 16, 24, 0.72);
+    placeholder:       "Search...";
+    placeholder-color: @dim-fg;
+    text-color:        @main-fg;
+}
+
+listbox {
+    spacing:          0em;
+    padding:          0em;
+    children:         [ "listview" ];
+    background-color: @main-bg;
+    border-radius:    0em 0em 1em 1em;
+}
+
+listview {
+    enabled:          true;
+    spacing:          0.25em;
+    padding:          0.7em;
+    columns:          1;
+    lines:            8;
+    cycle:            true;
+    dynamic:          true;
+    scrollbar:        false;
+    layout:           vertical;
+    reverse:          false;
+    expand:           true;
+    fixed-height:     false;
+    fixed-columns:    true;
+    cursor:           "default";
+    background-color: transparent;
+    text-color:       @main-fg;
+}
+
+element {
+    enabled:          true;
+    spacing:          0.8em;
+    padding:          0.35em 0.7em;
+    border-radius:    0.55em;
+    cursor:           pointer;
+    background-color: transparent;
+    text-color:       @main-fg;
+}
+
+element selected.normal {
+    background-color: @select-bg;
+    text-color:       @select-fg;
+}
+
+element-icon {
+    size:             1.6em;
+    cursor:           inherit;
+    background-color: transparent;
+    text-color:       inherit;
+}
+
+element-text {
+    vertical-align:   0.5;
+    horizontal-align: 0.0;
+    cursor:           inherit;
+    background-color: transparent;
+    text-color:       inherit;
+}

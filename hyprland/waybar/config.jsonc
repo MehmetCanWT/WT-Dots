@@ -1,34 +1,127 @@
 {
+    "exclusive": true,
+    "reload_style_on_change": true,
     "layer": "top",
     "position": "top",
-    "height": 34,
-    "margin-top": 0,
-    "margin-left": 0,
-    "margin-right": 0,
-    "spacing": 4,
+    "spacing": 0,
+    "height": 32,
+    "margin-top": 2,
+    "margin-bottom": 0,
+    "margin-left": 4,
+    "margin-right": 4,
 
     "modules-left": [
-        "hyprland/workspaces",
-        "custom/btop"
+        "custom/power",
+        "custom/separator",
+        "clock",
+        "custom/separator",
+        "hyprland/workspaces"
     ],
     "modules-center": [
-        "clock"
+        "custom/music",
+        "tray"
     ],
     "modules-right": [
         "backlight",
-        "pulseaudio",
+        "bluetooth",
         "network",
+        "pulseaudio",
         "battery",
-        "tray"
+        "custom/btop"
     ],
 
+    "custom/separator": {
+        "format": "|",
+        "tooltip": false
+    },
+
+    "custom/power": {
+        "format": "⏻",
+        "tooltip": false,
+        "on-click": "wt-rust popup power"
+    },
+
+    "clock": {
+        "format": "{:%H:%M - %a, %d}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>"
+    },
+
     "hyprland/workspaces": {
+        "on-click": "activate",
         "disable-scroll": false,
         "all-outputs": true,
         "format": "{name}",
         "ignore-workspaces": [
             "^99$"
         ]
+    },
+
+    "custom/music": {
+        "exec": "wt-rust music --waybar",
+        "return-type": "json",
+        "format": "{}",
+        "tooltip": true,
+        "on-click": "wt-rust music --action play-pause",
+        "on-click-right": "wt-rust music --action next",
+        "on-click-middle": "wt-rust music --action previous",
+        "on-scroll-up": "wt-rust music --offset 2",
+        "on-scroll-down": "wt-rust music --offset -2"
+    },
+
+    "backlight": {
+        "format": "{icon} {percent}%",
+        "format-icons": ["󰃞", "󰃟", "󰃝", "󰃠"],
+        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh brightness up",
+        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh brightness down"
+    },
+
+    "bluetooth": {
+        "format": "󰂯",
+        "format-connected": "󰂱 {device_alias}",
+        "format-off": "󰂲",
+        "format-disabled": "󰂲",
+        "max-length": 14,
+        "tooltip-format": "{controller_alias}\t{controller_address}\n{num_connections} connected",
+        "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
+        "tooltip-format-enumerate-connected": "{device_alias} ({device_battery_percentage}%)",
+        "on-click": "wt-rust popup bluetooth",
+        "on-click-right": "bluetoothctl power $(bluetoothctl show | grep -q 'Powered: yes' && echo off || echo on)"
+    },
+
+    "network": {
+        "format-wifi": "󰤨 Kittens",
+        "format-ethernet": "󰈀 Wired",
+        "format-linked": "󰈀 {ifname}",
+        "format-disconnected": "󰤭 Offline",
+        "max-length": 16,
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)\nIP: {ipaddr}/{cidr}\nGateway: {gwaddr}",
+        "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
+        "tooltip-format-disconnected": "Disconnected",
+        "on-click": "wt-rust popup wifi"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰖁 Muted",
+        "format-icons": {
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "on-click": "wt-rust popup volume",
+        "on-click-right": "~/.config/hypr/scripts/media-step.sh mute",
+        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh volume up",
+        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh volume down",
+        "scroll-step": 5
+    },
+
+    "battery": {
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "format-plugged": "󰚥 {capacity}%",
+        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
     },
 
     "custom/btop": {
@@ -40,55 +133,9 @@
         "on-click": "ghostty --class=wt-btop -e btop"
     },
 
-    "clock": {
-        "format": "󰥔  {:%H:%M  ·  %d %b %a}",
-        "tooltip-format": "<tt><small>{calendar}</small></tt>"
-    },
-
-    "backlight": {
-        "format": "{icon}  {percent}%",
-        "format-icons": ["󰃞", "󰃟", "󰃝", "󰃠"],
-        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh brightness up",
-        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh brightness down"
-    },
-
-    "pulseaudio": {
-        "format": "{icon}  {volume}%",
-        "format-muted": "󰖁  Muted",
-        "format-icons": {
-            "default": ["󰕿", "󰖀", "󰕾"]
-        },
-        "on-click": "wt-rust popup volume",
-        "on-click-right": "~/.config/hypr/scripts/media-step.sh mute",
-        "on-scroll-up": "~/.config/hypr/scripts/media-step.sh volume up",
-        "on-scroll-down": "~/.config/hypr/scripts/media-step.sh volume down",
-        "scroll-step": 5
-    },
-
-    "network": {
-        "format-wifi": "󰤨  {essid}",
-        "format-ethernet": "󰈀  Wired",
-        "format-linked": "󰈀  {ifname}",
-        "format-disconnected": "󰤭  Offline",
-        "max-length": 18,
-        "tooltip-format-wifi": "{essid} ({signalStrength}%)\nIP: {ipaddr}/{cidr}\nGateway: {gwaddr}",
-        "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
-        "tooltip-format-disconnected": "Disconnected",
-        "on-click": "wt-rust popup wifi"
-    },
-
-    "battery": {
-        "states": {
-            "warning": 30,
-            "critical": 15
-        },
-        "format": "{icon}  {capacity}%",
-        "format-charging": "󰂄  {capacity}%",
-        "format-plugged": "󰚥  {capacity}%",
-        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
-    },
-
     "tray": {
-        "spacing": 8
+        "icon-size": 15,
+        "spacing": 8,
+        "show-passive-items": true
     }
 }
