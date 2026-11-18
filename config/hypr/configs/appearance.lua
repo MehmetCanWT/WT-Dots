@@ -59,8 +59,6 @@ hl.config({
         disable_splash_rendering = true,
         background_color         = 0x11111b,
         middle_click_paste       = true,
-        float_force_onscreen     = true,
-        new_float_force_onscreen = true,
     },
 
     layers = {

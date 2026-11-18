@@ -14,12 +14,13 @@ hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + W",      hl.dsp.exec_cmd(wallpaper))
+hl.bind(mainMod .. " + V",      hl.dsp.exec_cmd("~/.config/hypr/scripts/cliphist-rofi.sh"))
 hl.bind(mainMod .. " + L",      hl.dsp.exec_cmd("hyprlock"))
 hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("hyprshutdown -t 'Logging out...'"))
 
 -- Window Management
 hl.bind(mainMod .. " + Q", hl.dsp.window.close())
-hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + C", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen(0))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
@@ -58,9 +59,15 @@ hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Screenshots (saved to ~/Pictures/Screenshots + copied to clipboard)
-hl.bind("Print",         hl.dsp.exec_cmd("~/.config/hypr/scripts/screenshot.sh region"))
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd("~/.config/hypr/scripts/screenshot.sh full"))
+-- Screenshots (HyprCapture with fallback to screenshot.sh)
+if hl.plugin.hyprcapture ~= nil then
+    hl.bind("Print",         hl.plugin.hyprcapture.open_editor)
+    hl.bind("SHIFT + Print", function() hl.plugin.hyprcapture.open("fullscreen") end)
+    hl.bind("ALT + Print",   hl.plugin.hyprcapture.record_toggle)
+else
+    hl.bind("Print",         hl.dsp.exec_cmd("~/.config/hypr/scripts/screenshot.sh region"))
+    hl.bind("SHIFT + Print", hl.dsp.exec_cmd("~/.config/hypr/scripts/screenshot.sh full"))
+end
 
 -- Audio & Brightness (Laptop Keys - strict 5% steps)
 hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("~/.config/hypr/scripts/media-step.sh volume up"),     { locked = true, repeating = true })
