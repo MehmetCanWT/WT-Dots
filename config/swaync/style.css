@@ -1,0 +1,102 @@
+@import "colors.css";
+
+* {
+    font-family: "0xProto Nerd Font", sans-serif;
+    font-size: 12px;
+    color: @wt_text;
+}
+
+.notification-row {
+    outline: none;
+    margin: 4px 10px;
+}
+
+.notification {
+    background: @wt_bg;
+    border: 1px solid @wt_border;
+    border-radius: 14px;
+    padding: 8px 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.notification-content {
+    margin: 2px;
+}
+
+.summary {
+    font-size: 13px;
+    font-weight: bold;
+    color: @wt_text;
+}
+
+.body {
+    font-size: 12px;
+    color: @wt_text_dim;
+}
+
+.time {
+    font-size: 10px;
+    color: @wt_text_dim;
+    margin-right: 8px;
+}
+
+.close-button {
+    background: @wt_surface;
+    color: @wt_text;
+    border: none;
+    border-radius: 999px;
+    min-width: 20px;
+    min-height: 20px;
+}
+
+.close-button:hover {
+    background: @wt_accent_hover;
+}
+
+.notification-action {
+    background: @wt_surface;
+    border: 1px solid @wt_border;
+    border-radius: 8px;
+    margin: 4px 2px 0 2px;
+    padding: 4px 8px;
+}
+
+.notification-action:hover {
+    background: @wt_accent_bg;
+}
+
+.control-center {
+    background: @wt_bg;
+    border: 1px solid @wt_border;
+    border-radius: 16px;
+    padding: 10px;
+}
+
+.widget-title > label {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.widget-title > button {
+    background: @wt_surface;
+    border: 1px solid @wt_border;
+    border-radius: 8px;
+    padding: 4px 10px;
+}
+
+.widget-title > button:hover {
+    background: @wt_accent_hover;
+}
+
+.widget-dnd {
+    margin: 6px 0;
+}
+
+.widget-dnd > switch {
+    background: @wt_surface;
+    border-radius: 999px;
+}
+
+.widget-dnd > switch:checked {
+    background: @wt_accent;
+}

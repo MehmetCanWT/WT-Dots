@@ -480,7 +480,28 @@ fn parse_sonata_json(raw: &str) -> Option<PlayerState> {
     })
 }
 
+fn is_sonata_running() -> bool {
+    let Ok(entries) = fs::read_dir("/proc") else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        if !name.to_string_lossy().bytes().all(|b| b.is_ascii_digit()) {
+            continue;
+        }
+        if let Ok(comm) = fs::read_to_string(entry.path().join("comm"))
+            && comm.trim() == "sonata"
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn read_sonata_state() -> Option<PlayerState> {
+    if !is_sonata_running() {
+        return None;
+    }
     for path in sonata_now_playing_paths() {
         if let Ok(raw) = fs::read_to_string(path)
             && let Some(st) = parse_sonata_json(&raw)
