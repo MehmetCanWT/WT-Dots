@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -43,7 +44,7 @@ impl PlaybackClock {
             self.last_mpris_pos = mpris_pos;
             self.mpris_works = mpris_pos > 0.5;
             if reset_offset {
-                let _ = fs::write("/tmp/waybar_lyrics_offset", "0");
+                let _ = fs::write(crate::common::runtime_path("waybar_lyrics_offset"), "0");
             }
             return self.elapsed;
         }
@@ -124,7 +125,9 @@ fn pick_player() -> Option<String> {
 }
 
 fn cache_dir() -> PathBuf {
-    let home = env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
+    let home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"));
     let dir = home.join(".cache/waybar-lyrics");
     let _ = fs::create_dir_all(&dir);
     dir
@@ -143,10 +146,10 @@ fn track_hash(artist: &str, title: &str) -> String {
 fn clean_query(text: &str) -> String {
     let mut s = text.to_string();
     for suffix in [" - YouTube Music", " - YouTube", " | YouTube", " - Topic"] {
-        if let Some(idx) = s.to_lowercase().rfind(&suffix.to_lowercase()) {
-            if idx + suffix.len() == s.len() {
-                s.truncate(idx);
-            }
+        if let Some(idx) = s.to_lowercase().rfind(&suffix.to_lowercase())
+            && idx + suffix.len() == s.len()
+        {
+            s.truncate(idx);
         }
     }
     // Strip trailing (...) or [...] tags like (Official Video), [Explicit]
@@ -201,10 +204,10 @@ fn parse_lrc(lrc: &str) -> Vec<LyricLine> {
         while rest.starts_with('[') {
             if let Some(end) = rest.find(']') {
                 let tag = &rest[1..end];
-                if let Some((m_str, s_str)) = tag.split_once(':') {
-                    if let (Ok(m), Ok(s)) = (m_str.parse::<f64>(), s_str.parse::<f64>()) {
-                        timestamps.push(m * 60.0 + s);
-                    }
+                if let Some((m_str, s_str)) = tag.split_once(':')
+                    && let (Ok(m), Ok(s)) = (m_str.parse::<f64>(), s_str.parse::<f64>())
+                {
+                    timestamps.push(m * 60.0 + s);
                 }
                 rest = rest[end + 1..].trim_start();
             } else {
@@ -221,7 +224,11 @@ fn parse_lrc(lrc: &str) -> Vec<LyricLine> {
             }
         }
     }
-    lines.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+    lines.sort_by(|a, b| {
+        a.time
+            .partial_cmp(&b.time)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     lines
 }
 
@@ -232,24 +239,33 @@ fn fetch_lrclib(artist: &str, title: &str) -> Vec<LyricLine> {
         return Vec::new();
     }
 
-    let mut url = format!("https://lrclib.net/api/get?track_name={}", url_encode(&c_title));
+    let mut url = format!(
+        "https://lrclib.net/api/get?track_name={}",
+        url_encode(&c_title)
+    );
     if !c_artist.is_empty() {
         url.push_str(&format!("&artist_name={}", url_encode(&c_artist)));
     }
 
     if let Ok(out) = Command::new("curl")
-        .args(["-s", "-m", "5", "-A", "WT-Dots-Waybar/2.0", &url])
+        .args([
+            "-sf",
+            "--proto",
+            "=https",
+            "-m",
+            "5",
+            "-A",
+            "WT-Dots-Waybar/2.0",
+            &url,
+        ])
         .output()
+        && out.status.success()
+        && let Ok(v) = serde_json::from_slice::<Value>(&out.stdout)
+        && let Some(synced) = v.get("syncedLyrics").and_then(|x| x.as_str())
     {
-        if out.status.success() {
-            if let Ok(v) = serde_json::from_slice::<Value>(&out.stdout) {
-                if let Some(synced) = v.get("syncedLyrics").and_then(|x| x.as_str()) {
-                    let parsed = parse_lrc(synced);
-                    if !parsed.is_empty() {
-                        return parsed;
-                    }
-                }
-            }
+        let parsed = parse_lrc(synced);
+        if !parsed.is_empty() {
+            return parsed;
         }
     }
 
@@ -260,18 +276,25 @@ fn fetch_lrclib(artist: &str, title: &str) -> Vec<LyricLine> {
     };
     let search_url = format!("https://lrclib.net/api/search?q={}", url_encode(&q));
     if let Ok(out) = Command::new("curl")
-        .args(["-s", "-m", "5", "-A", "WT-Dots-Waybar/2.0", &search_url])
+        .args([
+            "-sf",
+            "--proto",
+            "=https",
+            "-m",
+            "5",
+            "-A",
+            "WT-Dots-Waybar/2.0",
+            &search_url,
+        ])
         .output()
+        && out.status.success()
+        && let Ok(Value::Array(arr)) = serde_json::from_slice::<Value>(&out.stdout)
     {
-        if out.status.success() {
-            if let Ok(Value::Array(arr)) = serde_json::from_slice::<Value>(&out.stdout) {
-                for item in arr {
-                    if let Some(synced) = item.get("syncedLyrics").and_then(|x| x.as_str()) {
-                        let parsed = parse_lrc(synced);
-                        if !parsed.is_empty() {
-                            return parsed;
-                        }
-                    }
+        for item in arr {
+            if let Some(synced) = item.get("syncedLyrics").and_then(|x| x.as_str()) {
+                let parsed = parse_lrc(synced);
+                if !parsed.is_empty() {
+                    return parsed;
                 }
             }
         }
@@ -311,7 +334,11 @@ fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
 }
 
 fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    (lerp_u8(a.0, b.0, t), lerp_u8(a.1, b.1, t), lerp_u8(a.2, b.2, t))
+    (
+        lerp_u8(a.0, b.0, t),
+        lerp_u8(a.1, b.1, t),
+        lerp_u8(a.2, b.2, t),
+    )
 }
 
 /// Smooth character-level sweeping glow wave across the current lyric line.
@@ -329,7 +356,11 @@ fn render_glow_line(line: &str, pos_s: f64, t_start: f64, t_end: f64) -> String 
 
     // Palette: dimmed (#6c7086) -> sung (#cdd6f4) -> glowing peak (#ffffff / #89dceb)
     let col_dim = (0x6c_u8, 0x70_u8, 0x86_u8);
-    let col_sung = (0xcdd6f4_u32 >> 16 & 0xff, 0xcdd6f4_u32 >> 8 & 0xff, 0xcdd6f4_u32 & 0xff);
+    let col_sung = (
+        0xcdd6f4_u32 >> 16 & 0xff,
+        0xcdd6f4_u32 >> 8 & 0xff,
+        0xcdd6f4_u32 & 0xff,
+    );
     let col_sung = (col_sung.0 as u8, col_sung.1 as u8, col_sung.2 as u8);
     let col_glow = (0x89_u8, 0xdc_u8, 0xeb_u8); // bright cyan-white glow
 
@@ -358,7 +389,11 @@ fn render_glow_line(line: &str, pos_s: f64, t_start: f64, t_end: f64) -> String 
             cur_buf.push(ch);
         } else {
             if let Some(prev) = cur_hex.take() {
-                out.push_str(&format!("<span foreground=\"{}\">{}</span>", prev, pango_escape(&cur_buf)));
+                out.push_str(&format!(
+                    "<span foreground=\"{}\">{}</span>",
+                    prev,
+                    pango_escape(&cur_buf)
+                ));
                 cur_buf.clear();
             }
             cur_hex = Some(hex);
@@ -367,14 +402,18 @@ fn render_glow_line(line: &str, pos_s: f64, t_start: f64, t_end: f64) -> String 
     }
 
     if let Some(prev) = cur_hex {
-        out.push_str(&format!("<span foreground=\"{}\">{}</span>", prev, pango_escape(&cur_buf)));
+        out.push_str(&format!(
+            "<span foreground=\"{}\">{}</span>",
+            prev,
+            pango_escape(&cur_buf)
+        ));
     }
 
     out
 }
 
 fn read_offset() -> f64 {
-    fs::read_to_string("/tmp/waybar_lyrics_offset")
+    fs::read_to_string(crate::common::runtime_path("waybar_lyrics_offset"))
         .ok()
         .and_then(|s| s.trim().parse::<f64>().ok())
         .unwrap_or(0.0)
@@ -387,15 +426,90 @@ struct PlayerState {
     title: String,
     artist: String,
     mpris_pos: f64,
+    sonata_lyric: Option<String>,
+}
+
+fn sonata_now_playing_paths() -> [PathBuf; 2] {
+    let runtime = env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join("sonata/now_playing.json");
+    let cache = env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join(".cache/sonata/now_playing.json");
+    [runtime, cache]
+}
+
+fn parse_sonata_json(raw: &str) -> Option<PlayerState> {
+    let v: Value = serde_json::from_str(raw).ok()?;
+    let raw_status = v.get("status")?.as_str()?.trim().to_lowercase();
+    let status = match raw_status.as_str() {
+        "playing" => "Playing",
+        "paused" => "Paused",
+        _ => return None,
+    };
+    let title = clean_query(v.get("title").and_then(|x| x.as_str()).unwrap_or("").trim());
+    let artist = v
+        .get("artist")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if title.is_empty() && artist.is_empty() {
+        return None;
+    }
+    let mpris_pos = v
+        .get("position_secs")
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0);
+    let sonata_lyric = v
+        .get("lyric")
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+
+    Some(PlayerState {
+        player: Some("sonata".to_string()),
+        status: status.to_string(),
+        title,
+        artist,
+        mpris_pos,
+        sonata_lyric,
+    })
+}
+
+fn read_sonata_state() -> Option<PlayerState> {
+    for path in sonata_now_playing_paths() {
+        if let Ok(raw) = fs::read_to_string(path)
+            && let Some(st) = parse_sonata_json(&raw)
+        {
+            return Some(st);
+        }
+    }
+    None
 }
 
 fn parse_and_select_state() -> PlayerState {
+    let sonata = read_sonata_state();
+    if let Some(ref st) = sonata
+        && st.status == "Playing"
+    {
+        return st.clone();
+    }
+
     let Some(p) = pick_player() else {
-        return PlayerState::default();
+        return sonata.unwrap_or_default();
     };
     let status = run_playerctl(&["-p", &p, "status"]);
     if status != "Playing" && status != "Paused" {
-        return PlayerState::default();
+        return sonata.unwrap_or_default();
+    }
+    if status != "Playing"
+        && let Some(st) = sonata
+    {
+        return st;
     }
     let meta = run_playerctl(&["-p", &p, "metadata", "--format", "{{title}}\t{{artist}}"]);
     let mut parts = meta.splitn(2, '\t');
@@ -422,6 +536,7 @@ fn parse_and_select_state() -> PlayerState {
         title,
         artist,
         mpris_pos,
+        sonata_lyric: None,
     }
 }
 
@@ -433,8 +548,12 @@ fn run_waybar_loop() {
 
     // Event-driven MPRIS listener via `playerctl -a -F` (0ms reaction, zero polling)
     let state_listener = Arc::clone(&shared_state);
+    let running = Arc::new(AtomicBool::new(true));
+    let running_listener = Arc::clone(&running);
+    let active_child: Arc<Mutex<Option<std::process::Child>>> = Arc::new(Mutex::new(None));
+    let child_slot = Arc::clone(&active_child);
     thread::spawn(move || {
-        loop {
+        while running_listener.load(Ordering::Relaxed) {
             if let Ok(mut child) = Command::new("playerctl")
                 .args([
                     "-a",
@@ -447,53 +566,86 @@ fn run_waybar_loop() {
                 .stderr(Stdio::null())
                 .spawn()
             {
-                if let Some(stdout) = child.stdout.take() {
+                let stdout = child.stdout.take();
+                *child_slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(child);
+                if let Some(stdout) = stdout {
                     let reader = BufReader::new(stdout);
                     for line in reader.lines().map_while(Result::ok) {
+                        if !running_listener.load(Ordering::Relaxed) {
+                            break;
+                        }
                         let _ = line;
                         let next = parse_and_select_state();
-                        *state_listener.lock().unwrap() = next;
+                        *state_listener.lock().unwrap_or_else(|e| e.into_inner()) = next;
                     }
                 }
-                let _ = child.wait();
+                if let Some(mut c) = child_slot.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                    let _ = c.wait();
+                }
             }
-            thread::sleep(Duration::from_secs(2));
+            if running_listener.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_secs(2));
+            }
         }
     });
 
     let mut last_pos_sync = Instant::now();
     let mut last_out = String::new();
+    let mut sonata_line_text = String::new();
+    let mut sonata_line_start = 0.0_f64;
 
     let stdout = io::stdout();
     let mut out_lock = io::BufWriter::new(stdout.lock());
 
     loop {
-        let mut st = shared_state.lock().unwrap().clone();
+        let mut st = shared_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
 
-        // Periodically resync MPRIS position every 500ms while playing (detects position & seeking)
-        if st.status == "Playing" && last_pos_sync.elapsed() >= Duration::from_millis(500) {
+        // Poll Sonata's now_playing.json (no MPRIS) and resync MPRIS position every 500ms while playing
+        if let Some(sonata_st) = read_sonata_state() {
+            if sonata_st.status == "Playing"
+                || st.player.as_deref() == Some("sonata")
+                || st.player.is_none()
+            {
+                st = sonata_st;
+                *shared_state.lock().unwrap_or_else(|e| e.into_inner()) = st.clone();
+            }
+        } else if st.player.as_deref() == Some("sonata") {
+            st = parse_and_select_state();
+            *shared_state.lock().unwrap_or_else(|e| e.into_inner()) = st.clone();
+        } else if st.status == "Playing" && last_pos_sync.elapsed() >= Duration::from_millis(500) {
             last_pos_sync = Instant::now();
             if let Some(ref p) = st.player {
-                let pos = run_playerctl(&["-p", p, "position"]).parse::<f64>().unwrap_or(st.mpris_pos);
+                let pos = run_playerctl(&["-p", p, "position"])
+                    .parse::<f64>()
+                    .unwrap_or(st.mpris_pos);
                 st.mpris_pos = pos;
-                shared_state.lock().unwrap().mpris_pos = pos;
+                shared_state
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .mpris_pos = pos;
             }
         }
 
         let is_playing = st.status == "Playing";
+        let mut has_lyrics = false;
         let payload = if let Some(ref p) = st.player {
             let status = st.status;
             let title = st.title;
             let artist = st.artist;
             let mpris_pos = st.mpris_pos;
-            if (status == "Playing" || status == "Paused") && (!title.is_empty() || !artist.is_empty()) {
+            if (status == "Playing" || status == "Paused")
+                && (!title.is_empty() || !artist.is_empty())
+            {
                 let track_id = format!("{}::{}::{}", p, artist, title);
                 let base_pos = clock.update(&track_id, &status, mpris_pos, true);
                 let pos_s = (base_pos + read_offset()).max(0.0);
 
                 let key = track_hash(&artist, &title);
                 let lines = {
-                    let mut m = mem.lock().unwrap();
+                    let mut m = mem.lock().unwrap_or_else(|e| e.into_inner());
                     if let Some(cached) = m.get(&key) {
                         cached.clone()
                     } else {
@@ -510,7 +662,7 @@ fn run_waybar_loop() {
                                 Vec::new()
                             }
                         } else {
-                            let mut f = fetching.lock().unwrap();
+                            let mut f = fetching.lock().unwrap_or_else(|e| e.into_inner());
                             if !f.contains(&key) {
                                 f.insert(key.clone());
                                 let mem_c = Arc::clone(&mem);
@@ -521,14 +673,28 @@ fn run_waybar_loop() {
                                 thread::spawn(move || {
                                     let parsed = fetch_lrclib(&a_c, &t_c);
                                     if !parsed.is_empty() {
-                                        let pairs: Vec<(f64, &str)> =
-                                            parsed.iter().map(|l| (l.time, l.text.as_str())).collect();
+                                        let pairs: Vec<(f64, &str)> = parsed
+                                            .iter()
+                                            .map(|l| (l.time, l.text.as_str()))
+                                            .collect();
                                         if let Ok(j) = serde_json::to_string(&pairs) {
-                                            let _ = fs::write(cache_dir().join(format!("{}.lrc.json", key_c)), j);
+                                            let _ = fs::write(
+                                                cache_dir().join(format!("{}.lrc.json", key_c)),
+                                                j,
+                                            );
                                         }
                                     }
-                                    mem_c.lock().unwrap().insert(key_c.clone(), parsed);
-                                    fetch_c.lock().unwrap().remove(&key_c);
+                                    {
+                                        let mut m = mem_c.lock().unwrap_or_else(|e| e.into_inner());
+                                        if m.len() >= 64 {
+                                            m.clear();
+                                        }
+                                        m.insert(key_c.clone(), parsed);
+                                    }
+                                    fetch_c
+                                        .lock()
+                                        .unwrap_or_else(|e| e.into_inner())
+                                        .remove(&key_c);
                                 });
                             }
                             Vec::new()
@@ -536,6 +702,7 @@ fn run_waybar_loop() {
                     }
                 };
 
+                has_lyrics = !lines.is_empty() || st.sonata_lyric.is_some();
                 let mut idx: isize = -1;
                 for (i, l) in lines.iter().enumerate() {
                     if l.time <= pos_s {
@@ -561,9 +728,23 @@ fn run_waybar_loop() {
                     };
                     let glow = render_glow_line(&lines[i].text, pos_s, t_start, t_end);
                     format!("<span foreground=\"#cba6f7\">󰎈</span>  {}", glow)
+                } else if status == "Playing"
+                    && let Some(ref lyric) = st.sonata_lyric
+                {
+                    if *lyric != sonata_line_text {
+                        sonata_line_text = lyric.clone();
+                        sonata_line_start = pos_s;
+                    }
+                    let glow =
+                        render_glow_line(lyric, pos_s, sonata_line_start, sonata_line_start + 4.0);
+                    format!("<span foreground=\"#cba6f7\">󰎈</span>  {}", glow)
                 } else {
                     let icon = if status == "Playing" { "󰎈" } else { "󰏤" };
-                    format!("{}  {}", icon, pango_escape(&truncate_chars(&track_label, 40)))
+                    format!(
+                        "{}  {}",
+                        icon,
+                        pango_escape(&truncate_chars(&track_label, 40))
+                    )
                 };
 
                 let pname = p.split('.').next().unwrap_or(p);
@@ -572,9 +753,9 @@ fn run_waybar_loop() {
                     tip.push(String::new());
                     let start = if idx > 0 { (idx - 1) as usize } else { 0 };
                     let end = (start + 4).min(lines.len());
-                    for i in start..end {
+                    for (i, line) in lines.iter().enumerate().take(end).skip(start) {
                         let prefix = if i as isize == idx { "▶ " } else { "  " };
-                        tip.push(format!("{}{}", prefix, lines[i].text));
+                        tip.push(format!("{}{}", prefix, line.text));
                     }
                 }
 
@@ -598,8 +779,24 @@ fn run_waybar_loop() {
             last_out = payload;
         }
 
-        let sleep_ms = if is_playing { 60 } else { 400 };
+        let sleep_ms = if is_playing && has_lyrics {
+            60
+        } else if is_playing {
+            300
+        } else {
+            400
+        };
         thread::sleep(Duration::from_millis(sleep_ms));
+    }
+
+    running.store(false, Ordering::Relaxed);
+    if let Some(mut c) = active_child
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+    {
+        let _ = c.kill();
+        let _ = c.wait();
     }
 }
 
@@ -607,20 +804,46 @@ pub fn handle_music(args: &[String]) {
     match args.first().map(|s| s.as_str()) {
         Some("--waybar") => run_waybar_loop(),
         Some("--action") => {
-            if let Some(act) = args.get(1) {
-                if let Some(p) = pick_player() {
-                    let _ = Command::new("playerctl").args(["-p", &p, act]).status();
-                }
+            if let Some(act) = args.get(1)
+                && let Some(p) = pick_player()
+            {
+                let _ = Command::new("playerctl").args(["-p", &p, act]).status();
             }
         }
         Some("--offset") => {
-            if let Some(delta_str) = args.get(1) {
-                if let Ok(delta) = delta_str.parse::<f64>() {
-                    let cur = read_offset();
-                    let _ = fs::write("/tmp/waybar_lyrics_offset", format!("{}", cur + delta));
-                }
+            if let Some(delta_str) = args.get(1)
+                && let Ok(delta) = delta_str.parse::<f64>()
+            {
+                let cur = read_offset();
+                let _ = fs::write(
+                    crate::common::runtime_path("waybar_lyrics_offset"),
+                    format!("{}", cur + delta),
+                );
             }
         }
         _ => eprintln!("Usage: wt-rust music <--waybar|--action <cmd>|--offset <sec>>"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_sonata_json;
+
+    #[test]
+    fn test_parse_sonata_now_playing() {
+        let raw = r#"{
+            "status": "Playing",
+            "title": "Numb (Official Video)",
+            "artist": "Linkin Park",
+            "position_secs": 42.5,
+            "lyric": "I've become so numb"
+        }"#;
+        let st = parse_sonata_json(raw).expect("valid sonata json");
+        assert_eq!(st.player.as_deref(), Some("sonata"));
+        assert_eq!(st.status, "Playing");
+        assert_eq!(st.title, "Numb");
+        assert_eq!(st.artist, "Linkin Park");
+        assert!((st.mpris_pos - 42.5).abs() < 0.01);
+        assert_eq!(st.sonata_lyric.as_deref(), Some("I've become so numb"));
     }
 }

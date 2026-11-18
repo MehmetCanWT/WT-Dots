@@ -461,6 +461,7 @@ impl WallpaperApp {
                         self.swatches = result.swatches;
                     }
                     self.bg_textures.insert(result.path, tex);
+                    self.evict_distant_bg_textures();
                     self.bg_loading_path = None;
                     self.bg_rx = None;
                 }
@@ -472,6 +473,28 @@ impl WallpaperApp {
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
             }
+        }
+    }
+
+    fn evict_distant_bg_textures(&mut self) {
+        let n = self.items.len() as isize;
+        if n <= 7 || self.bg_textures.len() <= 7 {
+            return;
+        }
+        let keep: std::collections::HashSet<&PathBuf> = (-3isize..=3)
+            .map(|offset| {
+                let idx = (self.current_index as isize + offset).rem_euclid(n) as usize;
+                &self.items[idx].path
+            })
+            .collect();
+        let to_drop: Vec<PathBuf> = self
+            .bg_textures
+            .keys()
+            .filter(|p| !keep.contains(p))
+            .cloned()
+            .collect();
+        for p in to_drop {
+            self.bg_textures.remove(&p);
         }
     }
 
@@ -1031,7 +1054,6 @@ pub fn apply_wallpaper_with_palette(wallpaper_path: &Path, cached_palette: Optio
         Ok(p) => p,
         Err(_) => wallpaper_path.to_path_buf(),
     };
-    let abs_str = abs_path.to_string_lossy();
 
     // 1. Extract Palette (or reuse pre-computed palette) & apply wallpaper + themes once
     let owned_pal;
@@ -1050,22 +1072,20 @@ pub fn apply_wallpaper(wallpaper_path: &Path) {
 }
 
 pub fn select_wallpaper() {
-    let Some((wp_listener, _wp_guard)) = crate::popup::bind_single_instance_socket(
-        "/tmp/wt-rust-wallpaper.sock",
-        |_stream| {
+    let wp_sock = crate::common::runtime_path("wt-rust-wallpaper.sock");
+    let Some((wp_listener, _wp_guard)) =
+        crate::common::bind_single_instance_socket(&wp_sock, |_stream| {
             let _ = Command::new("hyprctl")
                 .args([
                     "eval",
                     "hl.dispatch(hl.dsp.focus({ window = \"title:WT Wallpaper Selector\" }))",
                 ])
                 .status();
-        },
-    ) else {
+        })
+    else {
         return;
     };
-    std::thread::spawn(move || {
-        for _ in wp_listener.incoming().flatten() {}
-    });
+    std::thread::spawn(move || for _ in wp_listener.incoming().flatten() {});
 
     let home = match env::var_os("HOME") {
         Some(h) => PathBuf::from(h),

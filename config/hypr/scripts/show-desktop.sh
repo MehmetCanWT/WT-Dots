@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-state_file="/tmp/hypr_show_desktop_ws"
+state_file="${XDG_RUNTIME_DIR:-/tmp}/hypr_show_desktop_ws"
 cur=$(hyprctl activeworkspace -j | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 
 if [ "$cur" = "99" ]; then

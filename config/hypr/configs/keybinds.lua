@@ -1,7 +1,7 @@
 -- Hyprland Keybindings (defaults sourced from WT_DEFAULTS at top of hyprland.lua)
 
 local d           = rawget(_G, "WT_DEFAULTS") or {}
-local mainMod     = d.mod or "ALT"
+local mainMod     = d.mod or "SUPER"
 local terminal    = d.terminal or "ghostty"
 local fileManager = d.file_manager or "dolphin"
 local browser     = d.browser or "zen-browser"
@@ -9,7 +9,7 @@ local launcher    = d.launcher or "pkill rofi || rofi -show drun"
 local wallpaper   = d.wallpaper_picker or "wt-rust wallpaper select"
 
 -- Applications & System
-hl.bind("ALT + space",          hl.dsp.exec_cmd(launcher))
+hl.bind(mainMod .. " + space",  hl.dsp.exec_cmd(launcher))
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + E",      hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd(browser))

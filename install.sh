@@ -36,16 +36,16 @@ fi
 # Sync bundled wallpapers
 WP_DEST="$HOME/Pictures/Wallpapers"
 mkdir -p "$WP_DEST"
-if [ -d "$SCRIPT_DIR/Wallpapers" ]; then
+if [ -d "$SCRIPT_DIR/assets/wallpapers" ]; then
     echo "==> Copying bundled wallpapers to $WP_DEST..."
-    cp -n "$SCRIPT_DIR/Wallpapers/"* "$WP_DEST/" 2>/dev/null || true
+    cp -n "$SCRIPT_DIR/assets/wallpapers/"* "$WP_DEST/" 2>/dev/null || true
 fi
 
 # Install bundled fonts (0xProto Nerd Font)
-if [ -d "$SCRIPT_DIR/fonts" ]; then
+if [ -d "$SCRIPT_DIR/assets/fonts" ]; then
     echo "==> Installing bundled fonts to ~/.local/share/fonts..."
     mkdir -p "$HOME/.local/share/fonts"
-    cp -rf "$SCRIPT_DIR/fonts/"* "$HOME/.local/share/fonts/"
+    cp -rf "$SCRIPT_DIR/assets/fonts/"* "$HOME/.local/share/fonts/"
     command -v fc-cache >/dev/null 2>&1 && fc-cache -f || true
 fi
 
@@ -55,9 +55,9 @@ cargo build --release --manifest-path "$SCRIPT_DIR/WT-Rust/Cargo.toml"
 install -Dm755 "$SCRIPT_DIR/WT-Rust/target/release/wt-rust" "$HOME/.local/bin/wt-rust"
 echo "==> Installed binary to $HOME/.local/bin/wt-rust"
 
-# Install helper binaries
-if [ -f "$SCRIPT_DIR/hyprland/bin/game-run" ]; then
-    install -Dm755 "$SCRIPT_DIR/hyprland/bin/game-run" "$HOME/.local/bin/game-run"
+# Install helper scripts
+if [ -f "$SCRIPT_DIR/scripts/game-run" ]; then
+    install -Dm755 "$SCRIPT_DIR/scripts/game-run" "$HOME/.local/bin/game-run"
 fi
 
 link_config() {
@@ -73,11 +73,12 @@ link_config() {
 }
 
 echo "==> Linking Hyprland configs..."
-link_config "$SCRIPT_DIR/rustfetch"         "$HOME/.config/rustfetch"
-link_config "$SCRIPT_DIR/hyprland/hypr"    "$HOME/.config/hypr"
-link_config "$SCRIPT_DIR/hyprland/waybar"  "$HOME/.config/waybar"
-link_config "$SCRIPT_DIR/hyprland/rofi"    "$HOME/.config/rofi"
-link_config "$SCRIPT_DIR/hyprland/mako"    "$HOME/.config/mako"
-link_config "$SCRIPT_DIR/hyprland/ghostty" "$HOME/.config/ghostty"
+link_config "$SCRIPT_DIR/config/fontconfig" "$HOME/.config/fontconfig"
+link_config "$SCRIPT_DIR/config/ghostty"    "$HOME/.config/ghostty"
+link_config "$SCRIPT_DIR/config/hypr"       "$HOME/.config/hypr"
+link_config "$SCRIPT_DIR/config/mako"       "$HOME/.config/mako"
+link_config "$SCRIPT_DIR/config/rofi"       "$HOME/.config/rofi"
+link_config "$SCRIPT_DIR/config/rustfetch"  "$HOME/.config/rustfetch"
+link_config "$SCRIPT_DIR/config/waybar"     "$HOME/.config/waybar"
 
 echo "==> WT-Dots Hyprland installation complete!"
