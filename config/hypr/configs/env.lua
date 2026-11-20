@@ -4,9 +4,8 @@ local d = rawget(_G, "WT_DEFAULTS") or {}
 
 hl.env("BROWSER", d.browser or "zen-browser")
 
--- Dual-GPU laptop: force Intel iGPU (00:02.0) as primary compositor GPU, NVIDIA dGPU (01:00.0) as secondary fallback
-hl.env("AQ_DRM_DEVICES", "/dev/dri/by-path/pci-0000:00:02.0-card:/dev/dri/by-path/pci-0000:01:00.0-card")
-
+hl.env("XCURSOR_THEME", "capitaine-cursors")
+hl.env("HYPRCURSOR_THEME", "capitaine-cursors")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")

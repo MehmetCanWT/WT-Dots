@@ -80,5 +80,8 @@ link_config "$SCRIPT_DIR/config/rofi"       "$HOME/.config/rofi"
 link_config "$SCRIPT_DIR/config/rustfetch"  "$HOME/.config/rustfetch"
 link_config "$SCRIPT_DIR/config/swaync"     "$HOME/.config/swaync"
 link_config "$SCRIPT_DIR/config/waybar"     "$HOME/.config/waybar"
+mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
+link_config "$SCRIPT_DIR/config/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
+link_config "$SCRIPT_DIR/config/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 
 echo "==> WT-Dots Hyprland installation complete!"

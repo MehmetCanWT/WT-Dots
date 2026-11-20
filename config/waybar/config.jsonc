@@ -22,11 +22,10 @@
         "tray"
     ],
     "modules-right": [
-        "backlight",
-        "bluetooth",
-        "network",
         "pulseaudio",
-        "battery",
+        "backlight",
+        "network",
+        "custom/battery",
         "custom/btop"
     ],
 
@@ -75,19 +74,6 @@
         "on-scroll-down": "~/.config/hypr/scripts/media-step.sh brightness down"
     },
 
-    "bluetooth": {
-        "format": "󰂯",
-        "format-connected": "󰂱 {device_alias}",
-        "format-off": "󰂲",
-        "format-disabled": "󰂲",
-        "max-length": 14,
-        "tooltip-format": "{controller_alias}\t{controller_address}\n{num_connections} connected",
-        "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
-        "tooltip-format-enumerate-connected": "{device_alias} ({device_battery_percentage}%)",
-        "on-click": "wt-rust popup bluetooth",
-        "on-click-right": "bluetoothctl power $(bluetoothctl show | grep -q 'Powered: yes' && echo off || echo on)"
-    },
-
     "network": {
         "format-wifi": "󰤨 Kittens",
         "format-ethernet": "󰈀 Wired",
@@ -113,15 +99,14 @@
         "scroll-step": 5
     },
 
-    "battery": {
-        "states": {
-            "warning": 30,
-            "critical": 15
-        },
-        "format": "{icon} {capacity}%",
-        "format-charging": "󰂄 {capacity}%",
-        "format-plugged": "󰚥 {capacity}%",
-        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    "custom/battery": {
+        "exec": "wt-rust battery",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 8,
+        "format": "{}",
+        "tooltip": true,
+        "on-click": "wt-rust popup battery"
     },
 
     "custom/btop": {
@@ -130,7 +115,7 @@
         "interval": 2,
         "format": "{}",
         "tooltip": true,
-        "on-click": "ghostty --class=wt-btop -e btop"
+        "on-click": "wt-rust popup system"
     },
 
     "tray": {

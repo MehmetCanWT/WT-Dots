@@ -8,6 +8,7 @@ fi
 
 thumb_dir="${XDG_CACHE_HOME:-$HOME/.cache}/cliphist-thumbs"
 mkdir -p "$thumb_dir"
+find "$thumb_dir" -type f -mtime +7 -delete 2>/dev/null || true
 
 selection="$(
     cliphist list | while IFS=$'\t' read -r id txt; do

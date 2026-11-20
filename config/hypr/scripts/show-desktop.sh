@@ -2,7 +2,7 @@
 set -euo pipefail
 
 state_file="${XDG_RUNTIME_DIR:-/tmp}/hypr_show_desktop_ws"
-cur=$(hyprctl activeworkspace -j | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+cur=$(hyprctl activeworkspace -j | jq -r '.id')
 
 if [ "$cur" = "99" ]; then
     prev=$(cat "$state_file" 2>/dev/null || echo "1")

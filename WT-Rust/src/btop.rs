@@ -26,7 +26,7 @@ unsafe extern "C" {
     fn statvfs(path: *const std::ffi::c_char, buf: *mut StatVfs) -> std::ffi::c_int;
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct CpuData {
     pub total: f64,
     pub cores: Vec<f64>,
@@ -34,7 +34,7 @@ pub struct CpuData {
     pub freq: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct MemData {
     pub used: f64,
     pub total: f64,
@@ -44,7 +44,7 @@ pub struct MemData {
     pub swap_pct: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct GpuData {
     pub name: String,
     pub usage: f64,
@@ -54,7 +54,7 @@ pub struct GpuData {
     pub vram_pct: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct NetData {
     pub iface: String,
     pub rx_rate: String,
@@ -63,7 +63,7 @@ pub struct NetData {
     pub tx_raw: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct DiskData {
     pub name: String,
     pub mount: String,
@@ -72,7 +72,7 @@ pub struct DiskData {
     pub pct: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct ProcData {
     pub pid: String,
     pub cpu: String,
@@ -80,13 +80,13 @@ pub struct ProcData {
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct BatteryData {
     pub pct: i32,
     pub status: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct FullStats {
     pub cpu: CpuData,
     pub mem: MemData,
@@ -207,18 +207,13 @@ fn render_metric(label: &str, pct: f64, pal: &crate::theme::Palette) -> String {
     )
 }
 
-pub fn handle_stats(args: &[String]) {
-    let waybar_mode = args.first().map(|s| s == "--waybar").unwrap_or(false);
+pub fn collect_stats(state_name: &str, include_gpu: bool) -> FullStats {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs_f64())
         .unwrap_or(0.0);
 
-    let state_file = if waybar_mode {
-        crate::common::runtime_path(".wt_btop_waybar_state.json")
-    } else {
-        crate::common::runtime_path(".btop_widget_state.json")
-    };
+    let state_file = crate::common::runtime_path(state_name);
     let prev_state: serde_json::Value = fs::read_to_string(&state_file)
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
@@ -424,7 +419,7 @@ pub fn handle_stats(args: &[String]) {
         vram_pct: 0.0,
     };
 
-    if !waybar_mode
+    if include_gpu
         && nvidia_gpu_active()
         && let Ok(output) = Command::new("nvidia-smi")
             .args([
@@ -538,7 +533,7 @@ pub fn handle_stats(args: &[String]) {
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok());
 
-    let full_stats = FullStats {
+    FullStats {
         cpu: CpuData {
             total: (cpu_total_pct * 10.0).round() / 10.0,
             cores: cores_pct
@@ -571,7 +566,17 @@ pub fn handle_stats(args: &[String]) {
         uptime_secs,
         is_turkish,
         palette,
+    }
+}
+
+pub fn handle_stats(args: &[String]) {
+    let waybar_mode = args.first().map(|s| s == "--waybar").unwrap_or(false);
+    let state_name = if waybar_mode {
+        ".wt_btop_waybar_state.json"
+    } else {
+        ".btop_widget_state.json"
     };
+    let full_stats = collect_stats(state_name, !waybar_mode);
 
     if waybar_mode {
         let pal = crate::theme::get_current_palette();

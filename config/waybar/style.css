@@ -1,7 +1,7 @@
 @import "colors.css";
 
 * {
-    font-family: "0xProto Nerd Font", "FantasqueSansM Nerd Font", sans-serif;
+    font-family: "0xProto Nerd Font", sans-serif;
     font-size: 12px;
     font-weight: bold;
     min-height: 0;
@@ -95,10 +95,9 @@ window#waybar {
 }
 
 #backlight,
-#bluetooth,
 #network,
 #pulseaudio,
-#battery,
+#custom-battery,
 #custom-btop,
 #tray {
     border-radius: 3px;
@@ -113,15 +112,6 @@ window#waybar {
 
 #backlight {
     color: #f9e2af;
-}
-
-#bluetooth {
-    color: @wt_accent;
-}
-
-#bluetooth.off,
-#bluetooth.disabled {
-    color: @wt_text_dim;
 }
 
 #network {
@@ -140,15 +130,19 @@ window#waybar {
     color: @wt_text_dim;
 }
 
-#battery {
+#custom-battery {
     color: #a6e3a1;
 }
 
-#battery.warning {
+#custom-battery.awake {
+    color: @wt_accent;
+}
+
+#custom-battery.warning {
     color: #fab387;
 }
 
-#battery.critical:not(.charging) {
+#custom-battery.critical {
     color: #f38ba8;
 }
 

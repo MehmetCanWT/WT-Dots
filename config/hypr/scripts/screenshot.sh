@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fallback screenshot script used only when the HyprCapture plugin is not loaded.
+if ! command -v grim >/dev/null 2>&1 || ! command -v slurp >/dev/null 2>&1; then
+    notify-send -u critical "Screenshot Failed" "HyprCapture is not loaded and grim/slurp are not installed."
+    exit 1
+fi
+
 dir="$HOME/Pictures/Screenshots"
 mkdir -p "$dir"
 file="$dir/$(date +%Y%m%d_%H%M%S).png"
